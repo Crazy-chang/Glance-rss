@@ -1,0 +1,30 @@
+@use '@/styles/theme.scss' as *;
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.chip {
+  height: 52px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-chip;
+  background: var(--card);
+  color: var(--text-2);
+  font-size: 24px;
+  white-space: nowrap;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.chipActive {
+  background: var(--accent-bg);
+  color: var(--accent);
+}

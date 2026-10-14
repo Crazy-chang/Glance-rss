@@ -1,0 +1,51 @@
+@use '@/styles/variables.scss' as *;
+@use '@/styles/theme.scss' as *;
+
+.item {
+  padding: 20px 24px;
+  background: var(--card);
+  border-radius: $radius-card;
+}
+
+.itemHover {
+  background: var(--field);
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.title {
+  flex: 1;
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1.4;
+  @include text-ellipsis-multi(2);
+}
+
+.summary {
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 24px;
+  line-height: 1.4;
+  @include text-ellipsis-multi(2);
+}
+
+.meta {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 22px;
+  @include text-ellipsis;
+}

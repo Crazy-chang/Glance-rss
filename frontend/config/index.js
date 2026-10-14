@@ -1,0 +1,67 @@
+const path = require('path')
+
+const config = {
+  projectName: 'glance-wx-frontend',
+  date: '2026-10-12',
+  alias: {
+    '@': path.resolve(__dirname, '..', 'src')
+  },
+  designWidth: 750,
+  deviceRatio: {
+    640: 2.34 / 2,
+    750: 1,
+    828: 1.89 / 2
+  },
+  sourceRoot: 'src',
+  outputRoot: 'dist',
+  plugins: ['@tarojs/plugin-framework-react'],
+  defineConstants: {},
+  copy: {
+    patterns: [],
+    options: {}
+  },
+  framework: 'react',
+  compiler: 'webpack5',
+  cache: {
+    enable: false
+  },
+  mini: {
+    postcss: {
+      pxtransform: {
+        enable: true,
+        config: {}
+      },
+      cssModules: {
+        enable: true,
+        config: {
+          namingPattern: 'module',
+          generateScopedName: '[name]__[local]___[hash:base64:5]'
+        }
+      }
+    }
+  },
+  h5: {
+    publicPath: '/',
+    staticDirectory: 'static',
+    postcss: {
+      autoprefixer: {
+        enable: true,
+        config: {}
+      },
+      cssModules: {
+        enable: true,
+        config: {
+          namingPattern: 'module',
+          generateScopedName: '[name]__[local]___[hash:base64:5]'
+        }
+      }
+    }
+  }
+}
+
+module.exports = function (merge) {
+  if (process.env.NODE_ENV === 'development') {
+    return merge({}, config, require('./dev'))
+  }
+  return merge({}, config, require('./prod'))
+}

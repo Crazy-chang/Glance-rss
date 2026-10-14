@@ -1,0 +1,74 @@
+@use '@/styles/theme.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* 固定顶部：搜索框 + 筛选行，高度与 body padding-top 对应 */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 12px $page-padding 8px;
+  background: var(--bg);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  height: $control-h;
+  padding: 0 20px;
+  border-radius: $radius-chip;
+  background: var(--field);
+  border: 1rpx solid var(--divider);
+}
+
+.searchInput {
+  flex: 1;
+  height: $control-h;
+  color: var(--text);
+  font-size: 28px;
+}
+
+.searchPlaceholder {
+  color: var(--text-2);
+}
+
+.clearBtn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.clearIcon {
+  color: var(--text-2);
+  font-size: 32px;
+  line-height: 1;
+}
+
+.body {
+  padding: 160px $page-padding 0;
+}
+
+.firstLoading {
+  padding-top: 200px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 每个 item 独立卡片，间距由 ArticleListItem 控制 */
+.listCard {
+  display: flex;
+  flex-direction: column;
+  gap: $card-gap;
+}

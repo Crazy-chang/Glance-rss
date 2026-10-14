@@ -1,0 +1,208 @@
+@use '@/styles/variables.scss' as *;
+@use '@/styles/theme.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ---- 顶部操作区：添加订阅 + 推荐订阅源 ---- */
+.topBar {
+  display: flex;
+  gap: $card-gap;
+  padding: $card-gap $page-padding 0;
+}
+
+.addBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 600;
+  border-radius: $radius-chip;
+  box-shadow: 0 4px 12px rgba(91, 157, 249, 0.25);
+}
+
+.addBtnHover {
+  opacity: 0.85;
+}
+
+.recommendBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  background: var(--card);
+  color: var(--accent);
+  font-size: 30px;
+  font-weight: 600;
+  border-radius: $radius-chip;
+}
+
+.recommendBtnHover {
+  background: var(--field);
+}
+
+/* ---- 列表：每个 row 独立卡片 ---- */
+.firstLoading {
+  padding: 80px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: $card-gap;
+  padding: $card-gap $page-padding 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--card);
+  border-radius: $radius-card;
+}
+
+.rowHover {
+  background: var(--field);
+}
+
+.favicon {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--field);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.faviconImg {
+  width: 64px;
+  height: 64px;
+}
+
+.faviconText {
+  color: var(--text-2);
+  font-size: var(--fs-title);
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  display: block;
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1.4;
+  @include text-ellipsis;
+}
+
+.sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 22px;
+  @include text-ellipsis;
+}
+
+.deleteBtn {
+  flex: none;
+  padding: 10px 16px;
+  color: var(--danger);
+  font-size: var(--fs-meta);
+  border-radius: $radius-chip;
+  line-height: 1.4;
+}
+
+.deleteBtnLoading {
+  opacity: 0.5;
+}
+
+/* ---- 添加订阅弹窗 ---- */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 $page-padding;
+  box-sizing: border-box;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 560px;
+  padding: 32px;
+  box-sizing: border-box;
+  background: var(--card);
+  border-radius: $radius-card;
+}
+
+.dialogTitle {
+  display: block;
+  margin-bottom: 24px;
+  color: var(--text);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  text-align: center;
+}
+
+.dialogInput {
+  width: 100%;
+  height: 80px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  background: var(--field);
+  color: var(--text);
+  font-size: var(--fs-body);
+  border-radius: $radius-chip;
+  border: 1rpx solid var(--divider);
+}
+
+.dialogPlaceholder {
+  color: var(--text-2);
+}
+
+.dialogActions {
+  display: flex;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.dialogBtn {
+  flex: 1;
+  text-align: center;
+  padding: 20px 0;
+  border-radius: $radius-chip;
+  font-size: var(--fs-body);
+  background: var(--field);
+  color: var(--text-2);
+}
+
+.dialogBtnPrimary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.dialogBtnDisabled {
+  opacity: 0.6;
+}

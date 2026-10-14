@@ -1,0 +1,27 @@
+# Glance RSS 阅读小程序 - 后端配置
+
+server:
+  port: "8080"
+  # 对外可访问的基础地址（用于图片代理、favicon 等拼接，按需修改）
+  base_url: "http://localhost:8080"
+
+database:
+  # SQLite 数据库文件路径（相对后端启动目录）
+  path: "data/glance.db"
+
+jwt:
+  # 生产环境务必修改为随机字符串
+  secret: "glance-dev-secret-change-me"
+  # 登录态有效期（天）
+  expire_days: 30
+
+wechat:
+  # 微信小程序凭证，上线前替换为真实值
+  appid: "YOUR_APPID"
+  secret: "YOUR_SECRET"
+
+fetch:
+  # 单源抓取超时（秒）
+  timeout_seconds: 10
+  # 抓取并发数
+  concurrency: 5

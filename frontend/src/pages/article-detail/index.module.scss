@@ -1,0 +1,217 @@
+@use '@/styles/theme.scss' as *;
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* 自定义导航栏：固定顶部，状态栏高度由页面 inline style 通过 CSS 变量 --status-bar-h 注入。
+   var(--status-bar-h) 取物理 px 值，不会被 pxtransform 处理；其他写在 scss 中的 px 会转 rpx。
+   calc 中混用 px(来自 var) 与 rpx 在小程序引擎中可正常解析。 */
+.navBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding-top: var(--status-bar-h, 20px);
+  background: var(--card);
+  border-bottom: 1rpx solid var(--divider);
+}
+
+.navContent {
+  display: flex;
+  align-items: center;
+  height: 88px;
+  padding: 0 8px;
+}
+
+.backBtn {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.backIcon {
+  font-size: 56px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.navTitle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.navTitleText {
+  width: 60%;
+  color: var(--text);
+  font-size: 30px;
+  text-align: center;
+  @include text-ellipsis;
+}
+
+.navPlaceholder {
+  flex: none;
+  width: 72px;
+}
+
+.body {
+  padding: calc(var(--status-bar-h, 20px) + 88px + 24px) 24px 200px;
+  min-height: 100vh;
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.loading {
+  padding-top: 200px;
+  display: flex;
+  justify-content: center;
+}
+
+.errorBox {
+  padding-top: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.errorText {
+  color: var(--text-2);
+  font-size: var(--fs-body);
+}
+
+.retryBtn {
+  padding: 16px 48px;
+  border-radius: $radius-chip;
+  background: var(--accent);
+  color: #fff;
+  font-size: 28px;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.header {
+  padding: 8px 0 24px;
+  border-bottom: 1rpx solid var(--divider);
+}
+
+.title {
+  display: block;
+  color: var(--text);
+  font-size: var(--fs-title);
+  line-height: 1.4;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.author {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  @include text-ellipsis;
+}
+
+.published {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+.content {
+  padding: 24px 0 32px;
+  color: var(--text);
+  font-size: var(--fs-body);
+  line-height: 1.65;
+  word-break: break-word;
+  overflow-x: hidden;
+}
+
+.empty {
+  display: block;
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  padding: 80px 0;
+}
+
+/* 底部操作栏：固定底部，4 个按钮均分 */
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  height: 96px;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--card);
+  border-top: 1rpx solid var(--divider);
+}
+
+.actionBtn {
+  flex: 1;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-size: 30px;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.actionDisabled {
+  color: var(--text-2);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.actionActive {
+  color: var(--accent);
+}
+
+.actionLoading {
+  opacity: 0.7;
+}
+
+/* 分享按钮：清除 Taro Button 默认样式（边框、背景、按钮态） */
+.shareBtn {
+  @include button-reset;
+  flex: 1;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-size: 30px;
+
+  &:active {
+    opacity: 0.6;
+  }
+}

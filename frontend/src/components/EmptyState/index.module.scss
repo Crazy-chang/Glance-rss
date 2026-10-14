@@ -1,0 +1,24 @@
+.wrap {
+  padding: 160px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.text {
+  color: var(--text-2);
+  font-size: 28px;
+}
+
+.action {
+  padding: 16px 48px;
+  border-radius: 48px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 28px;
+
+  &:active {
+    opacity: 0.7;
+  }
+}

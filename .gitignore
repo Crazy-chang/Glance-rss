@@ -1,0 +1,25 @@
+# 依赖
+node_modules/
+frontend/dist/
+
+# Go
+backend/server
+backend/glance-server
+
+# 数据与运行时（SQLite、favicon 等，目录运行时自动创建）
+backend/data/
+backend/fetcher/data/
+*.log
+
+# 配置密钥（本地保留 config.yaml 作为模板，真实密钥文件按需忽略）
+backend/config/config.local.yaml
+
+# 构建缓存与本地工具目录
+frontend/.swc/
+.pai/
+
+# 系统与编辑器
+.DS_Store
+.idea/
+.vscode/
+*.swp

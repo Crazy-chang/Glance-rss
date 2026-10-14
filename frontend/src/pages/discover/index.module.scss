@@ -1,0 +1,133 @@
+@use '@/styles/variables.scss' as *;
+@use '@/styles/theme.scss' as *;
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.firstLoading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.body {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: $card-gap $page-padding;
+  overflow-x: hidden;
+}
+
+/* ---- 分类区块：标题行 + 独立卡片列表 ---- */
+.catBlock {
+  margin-bottom: $card-gap;
+}
+
+.catHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 12px;
+}
+
+.catHeaderHover {
+  opacity: 0.7;
+}
+
+.catName {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  @include text-ellipsis;
+}
+
+.catCount {
+  flex: none;
+  min-width: 32px;
+  padding: 2px 10px;
+  box-sizing: border-box;
+  background: var(--field);
+  color: var(--text-2);
+  font-size: 20px;
+  border-radius: $radius-chip;
+  text-align: center;
+}
+
+.catArrow {
+  flex: none;
+  width: 44px;
+  color: var(--text-2);
+  font-size: 36px;
+  line-height: 1;
+  text-align: center;
+}
+
+.catList {
+  display: flex;
+  flex-direction: column;
+  gap: $card-gap;
+}
+
+.catItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--card);
+  border-radius: $radius-card;
+}
+
+.catItemMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.catItemTitle {
+  display: block;
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1.4;
+  @include text-ellipsis;
+}
+
+.catItemDesc {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 20px;
+  line-height: 1.4;
+  @include text-ellipsis;
+}
+
+/* ---- 订阅按钮 ---- */
+%subChipBase {
+  flex: none;
+  padding: 6px 16px;
+  font-size: 20px;
+  border-radius: $radius-chip;
+  line-height: 1.4;
+}
+
+.subBtn {
+  @extend %subChipBase;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.subBtnDone {
+  @extend %subChipBase;
+  background: var(--field);
+  color: var(--text-2);
+}
+
+.subBtnLoading {
+  opacity: 0.6;
+}

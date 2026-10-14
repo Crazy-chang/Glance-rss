@@ -1,0 +1,31 @@
+// 通用 Mixin（Taro 750 设计稿，单位 px 经 pxtransform 转 rpx，最终 1rpx ≈ 0.5pt @ iPhone 15 Pro）
+// 所有尺寸按移动端阅读舒适区取值：内边距 28-32rpx、字号 22-38rpx
+
+// 单行省略
+@mixin text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// 多行省略
+@mixin text-ellipsis-multi($lines: 2) {
+  display: -webkit-box;
+  overflow: hidden;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+}
+
+// 清除 Button 默认样式
+@mixin button-reset {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  line-height: normal;
+
+  &::after {
+    border: none;
+  }
+}
