@@ -5,15 +5,22 @@
   background: var(--bg);
 }
 
-/* 固定顶部：搜索框 + 筛选行，高度与 body padding-top 对应 */
+/* 固定顶部：搜索框 + 筛选行，白底铺满整屏宽度（含状态栏区域），滚动时不透出列表。
+   自定义导航栏页面：--status-bar-h 抬高首行，使其与右上角胶囊齐平；
+   原生导航栏页面（source-article）：变量 fallback 0，布局与原来一致。 */
 .header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 12px $page-padding 8px;
-  background: var(--bg);
+  padding: calc(var(--status-bar-h, 0px) + 12px) $page-padding 8px;
+  background: var(--header-bg, var(--bg));
+}
+
+/* 搜索行：右侧让出胶囊按钮宽度，避免遮挡 */
+.searchRow {
+  margin-right: var(--capsule-w, 0px);
 }
 
 .searchBox {
@@ -21,7 +28,7 @@
   align-items: center;
   height: $control-h;
   padding: 0 20px;
-  border-radius: $radius-chip;
+  border-radius: 50rpx;
   background: var(--field);
   border: 1rpx solid var(--divider);
 }
@@ -57,7 +64,7 @@
 }
 
 .body {
-  padding: 160px $page-padding 0;
+  padding: calc(var(--status-bar-h, 0px) + 190px) $page-padding 0;
 }
 
 .firstLoading {

@@ -65,10 +65,12 @@ func (h *Handler) Register(api *gin.RouterGroup) {
 		authed.POST("/article/unread/:id", h.articleMarkUnread)
 		authed.POST("/article/favorite/:id", h.articleFavorite)
 		authed.POST("/article/unfavorite/:id", h.articleUnfavorite)
+		authed.POST("/article/clear-read", h.articleClearRead)
 
 		// 订阅源
 		authed.GET("/source/list", h.sourceList)
 		authed.POST("/source/add", h.sourceAdd)
+		authed.POST("/source/rename/:id", h.sourceRename)
 		authed.POST("/source/delete/:id", h.sourceDelete)
 
 		// 发现
@@ -113,6 +115,8 @@ func handleServiceError(c *gin.Context, err error) {
 		service.FailNotFound(c, "文章不存在")
 	case errors.Is(err, service.ErrSourceMissing):
 		service.FailNotFound(c, "订阅源不存在")
+	case errors.Is(err, service.ErrSourceTitleEmpty):
+		service.FailBadRequest(c, "订阅源名称不能为空")
 	case errors.Is(err, service.ErrFeedInvalid):
 		service.FailBadRequest(c, "RSS地址无效或无法访问")
 	case errors.Is(err, service.ErrFeedDuplicate):

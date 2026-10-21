@@ -3,95 +3,79 @@
 
 .page {
   min-height: 100vh;
-  padding: 0 $page-padding calc(24px + env(safe-area-inset-bottom));
+  padding: var(--nav-h, 0px) $page-padding calc(24px + env(safe-area-inset-bottom));
   box-sizing: border-box;
   background: var(--bg);
 }
 
-/* ---- 设置卡片 ---- */
+/* ---- 设置卡片（所有项合并为一张） ---- */
 .card {
   margin-top: $card-gap;
-  padding: $card-padding;
+  padding: 0 $card-padding;
   background: var(--card);
   border-radius: $radius-card;
+  overflow: hidden;
 }
 
-.cardTitle {
-  display: block;
-  margin-bottom: 20px;
+/* 单行：标题左、值+箭头右 */
+.row,
+.rowLast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 96px;
+  padding: 20px 0;
+  border-bottom: 2px solid var(--divider);
+}
+
+.rowLast {
+  border-bottom: none;
+}
+
+.rowLabel {
   color: var(--text);
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: 500;
 }
 
-/* 分段控件：浅灰槽 + 选中项白底滑块 */
-.segRow {
-  display: flex;
-  gap: 12px;
-  padding: 6px;
-  background: var(--field);
-  border-radius: $radius-chip;
-}
-
-.seg {
-  flex: 1;
+.rowValue {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 60px;
-  border-radius: calc(#{$radius-chip} - 6px);
+  gap: 10px;
   color: var(--text-2);
+}
+
+.rowValueText {
   font-size: var(--fs-meta);
+  color: var(--text-2);
 }
 
-.segActive {
-  background: var(--card);
-  color: var(--accent);
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-}
-
-.segHover {
+.rowValueHint {
+  font-size: var(--fs-meta);
+  color: var(--text-2);
   opacity: 0.7;
 }
 
-/* 阅读主题色块 */
-.swatchRow {
-  display: flex;
-  gap: 24px;
-  padding: 8px 4px;
+.chevron {
+  color: var(--text-2);
+  font-size: 36px;
+  line-height: 1;
+  opacity: 0.5;
 }
 
-.swatchItem {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.swatchHover {
-  opacity: 0.7;
-}
-
-.swatch {
-  width: 60px;
-  height: 60px;
+.themeDot {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid var(--divider);
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.swatchActive {
-  border: 4px solid var(--accent);
-  box-shadow: 0 0 0 6px var(--accent-bg);
-}
-
-.swatchCheck {
-  color: var(--accent);
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1;
+/* 底部版本号 */
+.version {
+  display: block;
+  margin: 40px 0 8px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
 }

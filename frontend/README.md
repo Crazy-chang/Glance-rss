@@ -36,36 +36,42 @@ npm test           # vitest 跑工具函数单测
 
 ```
 src/
-├── app.tsx / app.config.ts / app.scss  # 入口（SettingProvider 包裹）、注册、全局样式与 4 套主题 CSS 变量
-├── styles/               # theme.scss（品牌色/尺寸）、variables.scss（mixin）
+├── app.tsx / app.config.ts / app.scss  # 入口（SettingProvider 包裹）、页面注册与 tabBar、全局样式与 4 套阅读主题 CSS 变量
+├── styles/               # theme.scss（品牌色/尺寸变量）、variables.scss（mixin：省略号、按钮重置等）
 ├── pages/                # 6 个页面
-│   ├── article/          # Tab1 文章：薄壳，渲染 ArticleListView
-│   ├── discover/         # Tab2 发现：热门订阅横滑卡片 + 分类折叠（待开发）
-│   ├── source/           # Tab3 订阅：订阅源管理、添加/删除（待开发）
-│   ├── mine/             # Tab4 我的：阅读主题 / 字号 / 每页条数 / 静默刷新间隔 / 排序
-│   ├── article-detail/   # 文章详情（待开发）
-│   └── source-article/   # 订阅文章页：薄壳，取路由 id/name 后渲染 ArticleListView
+│   ├── article/          # Tab1 文章列表：薄壳，渲染 ArticleListView
+│   ├── source/           # Tab2 订阅源管理：列表、添加、重命名、删除、三点菜单
+│   ├── setting/          # Tab3 设置：阅读主题/字号/每源条数/刷新间隔/排序/清理缓存
+│   ├── discover/         # 发现（非 tab，入口在订阅页）：热门订阅横滑卡片 + 分类
+│   ├── article-detail/   # 文章详情：正文渲染、已读/收藏、上一篇/下一篇、分享
+│   └── source-article/   # 单源文章列表：薄壳，取路由 id/name 后渲染 ArticleListView
 ├── components/           # 公共组件（仅抽离多处复用的）
-├── hooks/                # useArticleList：分页/筛选/搜索/下拉与静默刷新/状态事件
+├── hooks/                # useArticleList（分页/筛选/搜索/下拉刷新）、useHeaderMetrics（胶囊位置）
 ├── api/                  # request 封装 + types + 各业务接口模块
 ├── store/                # setting.tsx：全局设置 Context（主题、字号等）
-└── utils/                # time 相对时间、articleEvents 状态事件、navContext 详情本地序列
+└── utils/                # time 相对时间、articleEvents 状态事件、navContext 详情本地序列、theme 主题静态色板
 ```
+
+tabBar 共 3 项：文章、订阅、设置。发现页从订阅页顶部「推荐订阅源」按钮进入。
 
 ### 公共组件
 
 | 组件 | 复用位置 |
 |---|---|
-| ArticleListView | 文章 Tab、订阅文章页的完整列表（搜索/筛选/分页/刷新） |
-| ArticleListItem | 列表项：红点 + 标题两行 + 摘要两行 + 来源·时间 |
-| FilterBar | 全部/未读/已读/今日/收藏 筛选 |
+| ArticleListView | 文章 Tab、订阅文章页的完整列表（搜索/筛选/分页/下拉刷新） |
+| ArticleListItem | 列表项：未读小红点 + 标题两行 + 摘要两行 + 来源·相对时间 |
+| FilterBar | 全部/未读/已读/今日/收藏 筛选（默认选中「未读」） |
 | EmptyState | 列表空态（可带行动按钮） |
-| LoadingMore / Spinner | 底部加载中 / CSS 旋转指示器 |
-| ConfirmDialog（规划） | 删除等二次确认弹窗 |
-| InputDialog（规划） | 添加订阅源的输入弹窗 |
-| SettingRow（规划） | 我的 Tab 设置行 |
+| LoadingMore | 列表底部「加载中」指示器 |
+| Spinner | CSS 旋转指示器（首次加载等场景） |
 
-只在单页面使用一次的结构不抽组件，直接写在页面内。
+只在单页面使用一次的结构不抽组件，直接写在页面内（如订阅页的添加弹窗、重命名弹窗、操作菜单）。
+
+## 关键交互
+
+- **订阅源列表**：整行可点击进入该源文章列表（标题后紧跟 chevron 提示）；右侧三点按钮弹出底部半屏菜单（分享/重命名/复制源/删除），菜单打开时隐藏原生 tabBar。
+- **设置页**：阅读主题与字号通过 action sheet 选择；每源最大条数、刷新间隔、排序同理；清理缓存二次确认后调用 `/article/clear-read`。
+- **文章详情**：进入自动标已读；正文图片懒加载（`loading="lazy"`）；支持上一篇/下一篇导航。
 
 ## 技术约定
 
@@ -74,7 +80,7 @@ src/
 - 样式单位按 750 设计稿写 `px`，Taro pxtransform 自动转换 rpx
 - 路径别名 `@/` 指向 `src/`（webpack alias 与 tsconfig paths 均已配置）
 - ESLint / Prettier 只保留基础规则
-- 版本号取 `package.json` 的 `version`，在「我的」Tab 展示
+- 版本号取 `package.json` 的 `version`，在「设置」Tab 底部展示
 
 ## 提交规范
 

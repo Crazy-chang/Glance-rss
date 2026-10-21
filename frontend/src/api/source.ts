@@ -14,3 +14,8 @@ export function addSource(feedUrl: string) {
 export function deleteSource(id: number) {
   return request(`/source/delete/${id}`, { method: 'POST' })
 }
+
+// 重命名订阅源标题
+export function renameSource(id: number, title: string) {
+  return request(`/source/rename/${id}`, { method: 'POST', data: { title } })
+}

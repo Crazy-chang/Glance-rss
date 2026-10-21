@@ -54,7 +54,8 @@ backend/
 │   ├── article.go               # articles 文章（正文入库时即抓取清洗）
 │   ├── user_article_state.go    # user_article_states 已读/收藏状态
 │   ├── setting.go               # settings 用户设置
-│   └── recommend_source.go      # recommend_sources 发现页内置推荐源
+│   ├── recommend_source.go      # recommend_sources 发现页内置推荐源
+│   └── recommend_seed.go        # 推荐源种子数据（启动时自动写入）
 ├── middleware/
 │   └── auth.go        # JWT 校验，注入 user_id
 ├── handler/           # HTTP 层：收参、校验、回包
@@ -131,6 +132,12 @@ Query：
 
 无请求体。响应：`{"id":12,"is_read":true}`（收藏类为 `is_favorited`）。操作不存在的文章返回 404。
 
+#### POST /api/article/clear-read
+
+清理当前用户**已读且未收藏**的文章（收藏的文章即使已读也保留），事务内删除文章记录与对应用户状态。
+
+无请求体。响应：`{"deleted": 73}`，`deleted` 为实际删除的文章数量。
+
 ### 订阅源
 
 #### GET /api/source/list
@@ -155,6 +162,12 @@ Query：
 - 非 http(s) 地址 / RSS 无法解析 → 400 `RSS地址无效或无法访问`
 - 同一 feed 重复订阅 → 400 `该订阅源已存在`
 - 成功：创建订阅源并**异步立即首次抓取**，返回新建源 DTO（此时文章可能尚未入库）
+
+#### POST /api/source/rename/:id
+
+请求：`{"title":"新的名称"}`
+
+空名称返回 400 `订阅源名称不能为空`；成功返回 `{"id": 1}`。
 
 #### POST /api/source/delete/:id
 
@@ -199,7 +212,7 @@ Query：
 |---|---|
 | theme | `white` / `black` / `yellow` / `green` |
 | font_size | `small` / `medium` / `large` |
-| max_items | `50` / `100` / `200` / `300` / `500` |
+| max_items | `100` / `200` / `300` / `500` |
 | refresh_interval | `30m` / `1h` / `2h` / `manual` |
 | sort_order | `desc`（最新在前） / `asc`（最早在前） |
 

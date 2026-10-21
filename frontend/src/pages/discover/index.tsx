@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from '@tarojs/components'
+import { Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import classnames from 'classnames'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -75,7 +75,7 @@ export default function DiscoverPage() {
       ) : empty ? (
         <EmptyState text="暂无推荐内容" />
       ) : (
-        <ScrollView scrollY className={styles.body}>
+        <View className={styles.body}>
           {result!.categories.map((cat) => (
             <CategoryBlock
               key={cat.name}
@@ -84,7 +84,7 @@ export default function DiscoverPage() {
               onSubscribe={onSubscribe}
             />
           ))}
-        </ScrollView>
+        </View>
       )}
     </View>
   )
@@ -124,7 +124,7 @@ function CategoryBlock({ category, subscribing, onSubscribe }: CategoryBlockProp
   return (
     <View className={styles.catBlock}>
       <View
-        className={styles.catHeader}
+        className={classnames(styles.catHeader, expanded && styles.catHeaderSticky)}
         hoverClass={styles.catHeaderHover}
         onClick={() => setExpanded((v) => !v)}
       >

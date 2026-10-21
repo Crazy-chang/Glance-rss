@@ -61,20 +61,23 @@ export default function ArticleListView({ sourceId, withSourceProbe = false }: P
   return (
     <View className={styles.page}>
       <View className={styles.header}>
-        <View className={styles.searchBox}>
-          <Input
-            className={styles.searchInput}
-            value={searchInput}
-            placeholder="搜索文章"
-            placeholderClass={styles.searchPlaceholder}
-            confirmType="search"
-            onInput={(e) => onSearchInput(e.detail.value)}
-          />
-          {!!searchInput && (
-            <View className={styles.clearBtn} onClick={clearSearch}>
-              <Text className={styles.clearIcon}>×</Text>
-            </View>
-          )}
+        {/* 搜索行与胶囊按钮齐平，右侧让出胶囊宽度；筛选栏保持全宽 */}
+        <View className={styles.searchRow}>
+          <View className={styles.searchBox}>
+            <Input
+              className={styles.searchInput}
+              value={searchInput}
+              placeholder="搜索文章"
+              placeholderClass={styles.searchPlaceholder}
+              confirmType="search"
+              onInput={(e) => onSearchInput(e.detail.value)}
+            />
+            {!!searchInput && (
+              <View className={styles.clearBtn} onClick={clearSearch}>
+                <Text className={styles.clearIcon}>×</Text>
+              </View>
+            )}
+          </View>
         </View>
         <FilterBar value={filter} onChange={changeFilter} />
       </View>

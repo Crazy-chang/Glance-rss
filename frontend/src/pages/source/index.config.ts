@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '订阅',
+  navigationStyle: 'custom',
   enablePullDownRefresh: true
 })

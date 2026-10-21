@@ -2,21 +2,21 @@
 
 .bar {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 0;
+  justify-content: space-between;
+  margin: 20px 0 4px 0;
+  border-bottom: 4rpx solid var(--divider);
+  border-radius: $radius-chip;
 }
 
 .chip {
-  height: 52px;
+  height: 60px;
   padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: $radius-chip;
-  background: var(--card);
   color: var(--text-2);
-  font-size: 24px;
+  font-size: 28px;
   white-space: nowrap;
 
   &:active {
@@ -25,6 +25,8 @@
 }
 
 .chipActive {
-  background: var(--accent-bg);
+  font-weight: 600;
+  border-top: 2rpx solid var(--accent);
+  border-bottom: 4rpx solid var(--accent);
   color: var(--accent);
 }

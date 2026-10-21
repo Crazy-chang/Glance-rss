@@ -4,11 +4,11 @@ import type { FilterType } from '@/api/types'
 import styles from './index.module.scss'
 
 const FILTERS: { key: FilterType; label: string }[] = [
-  { key: 'unread', label: '未读' },
-  { key: 'all', label: '全部' },
-  { key: 'read', label: '已读' },
-  { key: 'today', label: '今日' },
-  { key: 'favorited', label: '收藏' }
+  { key: 'unread', label: '未 读' },
+  { key: 'all', label: '全 部' },
+  { key: 'read', label: '已 读' },
+  { key: 'today', label: '今 日' },
+  { key: 'favorited', label: '收 藏' }
 ]
 
 interface Props {

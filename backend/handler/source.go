@@ -35,6 +35,28 @@ func (h *Handler) sourceAdd(c *gin.Context) {
 	service.OK(c, dto)
 }
 
+type sourceRenameRequest struct {
+	Title string `json:"title"`
+}
+
+// POST /api/source/rename/:id
+func (h *Handler) sourceRename(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req sourceRenameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		service.FailBadRequest(c, "参数错误")
+		return
+	}
+	if err := h.source.Rename(uid(c), id, req.Title); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"id": id})
+}
+
 // POST /api/source/delete/:id
 func (h *Handler) sourceDelete(c *gin.Context) {
 	id, ok := parseIDParam(c, "id")

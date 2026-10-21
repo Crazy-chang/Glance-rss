@@ -3,14 +3,47 @@
 
 .page {
   min-height: 100vh;
+  box-sizing: border-box;
   background: var(--bg);
 }
 
-/* ---- 顶部操作区：添加订阅 + 推荐订阅源 ---- */
+/* ---- 固定头部：标题行与胶囊齐平 + 操作按钮行，白底铺满状态栏区域 ---- */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: calc(var(--status-bar-h, 0px) + 12px) $page-padding 8px;
+  background: var(--card);
+  border-bottom: 1px solid var(--divider);
+}
+
+/* 标题行：高度与右上角胶囊对齐 */
+.titleRow {
+  display: flex;
+  align-items: center;
+  height: 64px;
+}
+
+.title {
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.count {
+  margin-left: 8px;
+  font-size: 30px;
+  color: var(--text-2);
+}
+
+/* ---- 顶部操作区：随 header 固定，仅列表滚动 ---- */
 .topBar {
   display: flex;
   gap: $card-gap;
-  padding: $card-gap $page-padding 0;
+  padding: $card-gap 0;
 }
 
 .addBtn {
@@ -36,12 +69,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88px;
+  height: 84px;
   background: var(--card);
   color: var(--accent);
   font-size: 30px;
   font-weight: 600;
   border-radius: $radius-chip;
+  border: 2rpx solid var(--accent);
 }
 
 .recommendBtnHover {
@@ -49,6 +83,11 @@
 }
 
 /* ---- 列表：每个 row 独立卡片 ---- */
+/* header 固定，内容从 header 下方开始（与 header 总高 220rpx 对应） */
+.body {
+  padding-top: calc(var(--status-bar-h, 0px) + 220px);
+}
+
 .firstLoading {
   padding: 80px 0;
   display: flex;
@@ -60,7 +99,7 @@
   display: flex;
   flex-direction: column;
   gap: $card-gap;
-  padding: $card-gap $page-padding 0;
+  padding: $card-gap $page-padding 20px;
 }
 
 .row {
@@ -103,12 +142,32 @@
   min-width: 0;
 }
 
-.title {
-  display: block;
+/* 标题行：标题 + 紧跟的 chevron，提示整行可点击进入 */
+.titleLine {
+  display: flex;
+  align-items: center;
+}
+
+.rowTitle {
+  /* 短标题自然宽度（chevron 贴文字），长标题收缩省略 */
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--text);
   font-size: 28px;
   line-height: 1.4;
   @include text-ellipsis;
+}
+
+/* 自绘 chevron（不用字符 ›）：颜色/粗细可控，不依赖字体字形 */
+.chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border-top: 3px solid var(--text-2);
+  border-right: 3px solid var(--text-2);
+  transform: rotate(45deg);
+  opacity: 0.4;
 }
 
 .sub {
@@ -119,13 +178,24 @@
   @include text-ellipsis;
 }
 
-.deleteBtn {
+.moreBtn {
   flex: none;
-  padding: 10px 16px;
-  color: var(--danger);
-  font-size: var(--fs-meta);
-  border-radius: $radius-chip;
-  line-height: 1.4;
+  width: 48px;
+  height: 48px;
+  margin-right: -8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 999px;
+}
+
+.moreDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-2);
 }
 
 .deleteBtnLoading {
@@ -205,4 +275,74 @@
 
 .dialogBtnDisabled {
   opacity: 0.6;
+}
+
+/* ---- 底部半屏操作菜单 ---- */
+.menuMask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  animation: menuFadeIn 0.2s ease;
+}
+
+.menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--card);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  animation: menuSlideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes menuSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  padding: 0;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: normal;
+  line-height: 1;
+  background: var(--card);
+  border: none;
+  border-radius: 0;
+
+  /* 清除 Taro Button 默认边框 */
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    background: var(--field);
+  }
+}
+
+.menuItemDanger {
+  color: var(--danger);
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--divider);
 }

@@ -92,3 +92,13 @@ func (h *Handler) markFavorite(c *gin.Context, favorited bool) {
 	}
 	service.OK(c, gin.H{"id": id, "is_favorited": favorited})
 }
+
+// POST /api/article/clear-read 清理已读且未收藏的文章
+func (h *Handler) articleClearRead(c *gin.Context) {
+	count, err := h.article.ClearRead(uid(c))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"deleted": count})
+}

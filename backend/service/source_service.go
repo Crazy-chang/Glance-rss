@@ -158,6 +158,24 @@ func (s *SourceService) CreateFromFeed(userID int64, feedURL, title, siteURL, de
 	return &dto, nil
 }
 
+// Rename 更新订阅源标题（仅允许所属用户操作）
+func (s *SourceService) Rename(userID, sourceID int64, title string) error {
+	title = truncateRunes(title, 200)
+	if title == "" {
+		return ErrSourceTitleEmpty
+	}
+	res := s.db.Model(&model.Source{}).
+		Where("id = ? AND user_id = ?", sourceID, userID).
+		Update("title", title)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrSourceMissing
+	}
+	return nil
+}
+
 // Delete 删除订阅源，级联删除其文章与用户文章状态，并清理 favicon 文件
 func (s *SourceService) Delete(userID, sourceID int64) error {
 	var src model.Source

@@ -38,3 +38,8 @@ export function unfavorite(id: number) {
     silent: true
   })
 }
+
+// 清理已读且未收藏的文章，返回删除数量
+export function clearReadArticles() {
+  return request<{ deleted: number }>('/article/clear-read', { method: 'POST' })
+}

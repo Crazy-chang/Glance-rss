@@ -3,24 +3,20 @@
 
 .page {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: var(--bg);
 }
 
 .firstLoading {
-  flex: 1;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .body {
-  flex: 1;
   width: 100%;
   box-sizing: border-box;
   padding: $card-gap $page-padding;
-  overflow-x: hidden;
 }
 
 /* ---- 分类区块：标题行 + 独立卡片列表 ---- */
@@ -33,6 +29,14 @@
   align-items: center;
   gap: 12px;
   padding: 4px 4px 12px;
+}
+
+/* 展开时标题吸顶：贴在 ScrollView 顶部，背景遮挡下方滚动内容 */
+.catHeaderSticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
 }
 
 .catHeaderHover {

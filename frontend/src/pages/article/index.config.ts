@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '文章',
+  navigationStyle: 'custom',
   enablePullDownRefresh: true,
   onReachBottomDistance: 120
 })

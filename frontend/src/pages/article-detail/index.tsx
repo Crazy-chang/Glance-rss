@@ -26,7 +26,8 @@ import styles from './index.module.scss'
 
 /**
  * 把正文中的 img-proxy URL 补全为带 token 的绝对地址，并给所有 img 标签加
- * max-width:100%;height:auto;display:block; 防止超宽图片横向溢出。
+ * max-width:100%;height:auto;display:block; 防止超宽图片横向溢出，
+ * 同时加 loading="lazy" decoding="async" 让未滚到的图片延迟加载、异步解码。
  * <Image> 标签无法携带 Authorization 头，必须走 query 鉴权；
  * rich-text 内部节点不受外层 WXSS 作用域影响，必须用 inline style 控制图片宽度。
  */
@@ -34,17 +35,24 @@ function rewriteContentImages(content: string): string {
   if (!content) return ''
   let html = content
 
-  // 1) 给所有 img 标签补 max-width:100%;height:auto;display:block;
-  html = html.replace(/<img\b([^>]*?)(\s*\/?)>/gi, (match, attrs: string, slash: string) => {
+  // 1) 给所有 img 标签补 max-width + 懒加载属性
+  html = html.replace(/<img\b([^>]*?)(\s*\/?)>/gi, (_match, attrs: string, slash: string) => {
     const styleMatch = attrs.match(/style\s*=\s*["']([^"']*)["']/i)
     const rule = 'max-width:100%;height:auto;display:block;'
+    let newAttrs = attrs
     if (styleMatch) {
-      if (styleMatch[1].includes('max-width')) return match
-      const merged = `${rule}${styleMatch[1]}`
-      const newAttrs = attrs.replace(/style\s*=\s*["'][^"']*["']/i, `style="${merged}"`)
-      return `<img${newAttrs}${slash}>`
+      if (!styleMatch[1].includes('max-width')) {
+        const merged = `${rule}${styleMatch[1]}`
+        newAttrs = attrs.replace(/style\s*=\s*["'][^"']*["']/i, `style="${merged}"`)
+      }
+    } else {
+      newAttrs = `${attrs} style="${rule}"`
     }
-    return `<img${attrs} style="${rule}"${slash}>`
+    // 懒加载：已有 loading 属性则不覆盖
+    if (!/\bloading\s*=/i.test(newAttrs)) {
+      newAttrs += ' loading="lazy" decoding="async"'
+    }
+    return `<img${newAttrs}${slash}>`
   })
 
   // 2) 给 img-proxy URL 补 token（<Image> 无法带 Authorization 头）
@@ -278,7 +286,7 @@ export default function ArticleDetailPage() {
           })}
           onClick={onToggleFavorite}
         >
-          {detail?.is_favorited ? '已收藏' : '收藏'}
+          {detail?.is_favorited ? '取消收藏' : '收藏'}
         </View>
         <Button
           className={classnames(styles.actionBtn, styles.shareBtn)}

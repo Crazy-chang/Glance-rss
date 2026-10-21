@@ -179,6 +179,36 @@ func (s *ArticleService) SetFavorite(userID, articleID int64, favorited bool) er
 	})
 }
 
+// ClearRead 清理当前用户已读且未收藏的文章，返回删除的文章数量。
+// 收藏的文章（即使已读）会被保留，避免误删用户主动标记的内容。
+func (s *ArticleService) ClearRead(userID int64) (int64, error) {
+	var deleted int64
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// 找出该用户已读且未收藏的文章 ID
+		var ids []int64
+		if err := tx.Table("user_article_states st").
+			Joins("JOIN articles a ON a.id = st.article_id").
+			Joins("JOIN sources src ON src.id = a.source_id").
+			Where("st.user_id = ? AND src.user_id = ? AND st.is_read = 1 AND st.is_favorited = 0", userID, userID).
+			Pluck("a.id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		// 删除文章
+		res := tx.Where("id IN ?", ids).Delete(&model.Article{})
+		if res.Error != nil {
+			return res.Error
+		}
+		deleted = res.RowsAffected
+		// 删除对应的用户状态记录
+		tx.Where("article_id IN ? AND user_id = ?", ids, userID).Delete(&model.UserArticleState{})
+		return nil
+	})
+	return deleted, err
+}
+
 // checkOwnership 校验文章属于该用户的订阅源
 func (s *ArticleService) checkOwnership(userID, articleID int64) error {
 	var count int64
