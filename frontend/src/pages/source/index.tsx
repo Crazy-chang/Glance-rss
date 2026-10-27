@@ -44,7 +44,7 @@ export default function SourcePage() {
       title: item ? `推荐订阅：${item.title}` : 'Glance',
       path: item
         ? `/pages/source-article/index?id=${item.id}&name=${encodeURIComponent(item.title)}`
-        : '/pages/article/index'
+        : '/pages/index/index'
     }
   })
 

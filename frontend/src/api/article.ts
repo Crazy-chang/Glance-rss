@@ -16,8 +16,8 @@ export function getArticleList(query: ArticleListQuery = {}) {
   return request<PageResult<ArticleListItem>>('/article/list', { query })
 }
 
-export function getArticleDetail(id: number) {
-  return request<ArticleDetail>(`/article/detail/${id}`)
+export function getArticleDetail(id: number, query?: { share?: string; sig?: string }) {
+  return request<ArticleDetail>(`/article/detail/${id}`, { query })
 }
 
 export function markRead(id: number) {

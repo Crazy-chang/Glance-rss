@@ -74,6 +74,11 @@
   box-sizing: border-box;
 }
 
+/* 分享模式无底部操作栏，收紧底部留白 */
+.bodyShare {
+  padding-bottom: 48px;
+}
+
 .loading {
   padding-top: 200px;
   display: flex;

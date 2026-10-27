@@ -212,7 +212,7 @@ Query：
 |---|---|
 | theme | `white` / `black` / `yellow` / `green` |
 | font_size | `small` / `medium` / `large` |
-| max_items | `100` / `200` / `300` / `500` |
+| max_items | `100` / `200` / `300` |
 | refresh_interval | `30m` / `1h` / `2h` / `manual` |
 | sort_order | `desc`（最新在前） / `asc`（最早在前） |
 

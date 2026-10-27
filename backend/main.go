@@ -55,7 +55,7 @@ func main() {
 	h := handler.New(handler.Deps{
 		Cfg:      cfg,
 		Auth:     authSvc,
-		Article:  service.NewArticleService(db, cfg.Server.BaseURL),
+		Article:  service.NewArticleService(db, cfg.Server.BaseURL, cfg.JWT.Secret),
 		Source:   sourceSvc,
 		Discover: service.NewDiscoverService(db, sourceSvc),
 		Setting:  service.NewSettingService(db),

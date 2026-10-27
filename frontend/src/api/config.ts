@@ -1,3 +1,4 @@
-// 后端服务基址。微信开发者工具中已关闭域名校验（project.config.json urlCheck:false）；
-// 真机调试时改为电脑局域网 IP，如 http://192.168.1.10:8080
-export const BASE_URL = 'http://localhost:8080'
+// 后端服务基址
+// 开发：微信开发者工具中已关闭域名校验（project.config.json urlCheck:false），用 http://localhost:8080
+// 生产：必须使用 HTTPS + 已备案域名
+export const BASE_URL = 'https://glancelog.cn'

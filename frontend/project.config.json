@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "glance-wx",
   "description": "Glance RSS 阅读小程序",
-  "appid": "touristappid",
+  "appid": "wx2b0f954aca581232",
   "setting": {
     "urlCheck": false,
     "es6": false,

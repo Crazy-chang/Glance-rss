@@ -70,6 +70,9 @@ function rewriteContentImages(content: string): string {
 
 export default function ArticleDetailPage() {
   const router = useRouter()
+  // 分享卡片进入时路径带 share=1&sig=xxx：底部操作栏整体隐藏，只能阅读
+  const isShareMode = router.params.share === '1'
+  const shareSig = router.params.sig || ''
   const { setting } = useSetting()
   const theme = setting?.theme || 'white'
   const fontSize = setting?.font_size || 'medium'
@@ -101,12 +104,14 @@ export default function ArticleDetailPage() {
       setError('')
       const seq = ++reqSeqRef.current
       try {
-        const data = await getArticleDetail(id)
+        const data = isShareMode
+          ? await getArticleDetail(id, { share: '1', sig: shareSig })
+          : await getArticleDetail(id)
         if (seq !== reqSeqRef.current) return
         setDetail(data)
         setNavAnchor(id)
-        // 打开自动标记已读并广播给列表做本地更新
-        if (!data.is_read) {
+        // 打开自动标记已读并广播给列表做本地更新（分享模式无个人状态，跳过）
+        if (!isShareMode && !data.is_read) {
           markRead(id).catch((e) => console.error('[ArticleDetail] 标记已读失败', e))
           const patched = { ...data, is_read: true }
           setDetail(patched)
@@ -119,7 +124,7 @@ export default function ArticleDetailPage() {
         if (seq === reqSeqRef.current) setLoading(false)
       }
     },
-    []
+    [isShareMode, shareSig]
   )
 
   useEffect(() => {
@@ -200,13 +205,19 @@ export default function ArticleDetailPage() {
     }
   }
 
-  const goBack = () => Taro.navigateBack()
+  const goBack = () => {
+    if (Taro.getCurrentPages().length > 1) {
+      Taro.navigateBack()
+    } else {
+      Taro.switchTab({ url: '/pages/index/index' })
+    }
+  }
 
   useShareAppMessage(() => {
-    if (!detail) return { title: 'Glance 阅读', path: '/pages/article/index' }
+    if (!detail) return { title: 'Glance 阅读', path: '/pages/index/index' }
     return {
       title: detail.title,
-      path: `/pages/article-detail/index?id=${detail.id}`
+      path: `/pages/article-detail/index?id=${detail.id}&share=1&sig=${detail.share_sig || ''}`
     }
   })
 
@@ -235,8 +246,8 @@ export default function ArticleDetailPage() {
         </View>
       </View>
 
-      {/* 主体 */}
-      <View className={styles.body}>
+      {/* 主体：分享模式无底部操作栏，收紧底部留白 */}
+      <View className={classnames(styles.body, { [styles.bodyShare]: isShareMode })}>
         {loading && !detail ? (
           <View className={styles.loading}>
             <Spinner size={36} />
@@ -272,38 +283,40 @@ export default function ArticleDetailPage() {
         ) : null}
       </View>
 
-      {/* 底部操作栏 */}
-      <View className={styles.bottomBar}>
-        <View
-          className={classnames(styles.actionBtn, { [styles.actionDisabled]: !hasPrev })}
-          onClick={onPrev}
-        >
-          上一篇
+      {/* 底部操作栏：分享模式整体隐藏，只能阅读 */}
+      {!isShareMode && (
+        <View className={styles.bottomBar}>
+          <View
+            className={classnames(styles.actionBtn, { [styles.actionDisabled]: !hasPrev })}
+            onClick={onPrev}
+          >
+            上一篇
+          </View>
+          <View
+            className={classnames(styles.actionBtn, styles.favoriteBtn, {
+              [styles.actionActive]: detail?.is_favorited
+            })}
+            onClick={onToggleFavorite}
+          >
+            {detail?.is_favorited ? '取消收藏' : '收藏'}
+          </View>
+          <Button
+            className={classnames(styles.actionBtn, styles.shareBtn)}
+            openType="share"
+          >
+            分享
+          </Button>
+          <View
+            className={classnames(styles.actionBtn, {
+              [styles.actionDisabled]: !hasNext,
+              [styles.actionLoading]: loadingMoreNav
+            })}
+            onClick={onNext}
+          >
+            {loadingMoreNav ? '加载中' : '下一篇'}
+          </View>
         </View>
-        <View
-          className={classnames(styles.actionBtn, styles.favoriteBtn, {
-            [styles.actionActive]: detail?.is_favorited
-          })}
-          onClick={onToggleFavorite}
-        >
-          {detail?.is_favorited ? '取消收藏' : '收藏'}
-        </View>
-        <Button
-          className={classnames(styles.actionBtn, styles.shareBtn)}
-          openType="share"
-        >
-          分享
-        </Button>
-        <View
-          className={classnames(styles.actionBtn, {
-            [styles.actionDisabled]: !hasNext,
-            [styles.actionLoading]: loadingMoreNav
-          })}
-          onClick={onNext}
-        >
-          {loadingMoreNav ? '加载中' : '下一篇'}
-        </View>
-      </View>
+      )}
     </View>
   )
 }

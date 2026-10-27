@@ -31,6 +31,8 @@ export interface ArticleListItem {
 
 export interface ArticleDetail extends ArticleListItem {
   content: string
+  /** 分享签名，拼进分享链接供验签放行 */
+  share_sig: string
 }
 
 export interface UserSetting {

@@ -1,6 +1,6 @@
 export default defineAppConfig({
   pages: [
-    'pages/article/index',
+    'pages/index/index',
     'pages/discover/index',
     'pages/source/index',
     'pages/article-detail/index',
@@ -21,7 +21,7 @@ export default defineAppConfig({
     borderStyle: 'white',
     list: [
       {
-        pagePath: 'pages/article/index',
+        pagePath: 'pages/index/index',
         text: '文章',
         iconPath: 'assets/tab/article.png',
         selectedIconPath: 'assets/tab/article-active.png'

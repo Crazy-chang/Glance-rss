@@ -31,7 +31,7 @@ type SettingDTO struct {
 var (
 	validThemes    = []string{model.ThemeWhite, model.ThemeBlack, model.ThemeYellow, model.ThemeGreen}
 	validFonts     = []string{model.FontSizeSmall, model.FontSizeMedium, model.FontSizeLarge}
-	validItems     = []int{100, 200, 300, 500}
+	validItems     = []int{100, 200, 300}
 	validIntervals = []string{
 		model.RefreshInterval30m, model.RefreshInterval1h,
 		model.RefreshInterval2h, model.RefreshIntervalManual,

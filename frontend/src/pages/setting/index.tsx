@@ -11,8 +11,7 @@ import styles from './index.module.scss'
 const MAX_ITEM_OPTIONS: { key: UserSetting['max_items']; label: string }[] = [
   { key: 100, label: '100 篇' },
   { key: 200, label: '200 篇' },
-  { key: 300, label: '300 篇' },
-  { key: 500, label: '500 篇' }
+  { key: 300, label: '300 篇' }
 ]
 
 // 刷新间隔选项（对齐后端 model 定义的枚举值）

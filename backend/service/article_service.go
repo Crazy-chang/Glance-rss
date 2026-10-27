@@ -2,8 +2,12 @@ package service
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,13 +30,15 @@ const (
 var chinaZone = time.FixedZone("CST", 8*60*60)
 
 // ArticleService 文章查询与状态变更
+// secret 用于分享链接的 HMAC 签名（复用 JWT 密钥）
 type ArticleService struct {
 	db      *gorm.DB
 	baseURL string
+	secret  string
 }
 
-func NewArticleService(db *gorm.DB, baseURL string) *ArticleService {
-	return &ArticleService{db: db, baseURL: strings.TrimRight(baseURL, "/")}
+func NewArticleService(db *gorm.DB, baseURL, secret string) *ArticleService {
+	return &ArticleService{db: db, baseURL: strings.TrimRight(baseURL, "/"), secret: secret}
 }
 
 // ArticleListItem 列表项（不含正文）
@@ -53,6 +59,8 @@ type ArticleListItem struct {
 type ArticleDetail struct {
 	ArticleListItem
 	Content string `json:"content"`
+	// ShareSig 分享签名：前端拼进分享链接，验签通过方可免订阅阅读
+	ShareSig string `json:"share_sig"`
 }
 
 // ArticleListParams 列表查询参数
@@ -150,6 +158,44 @@ func (s *ArticleService) Detail(userID, articleID int64) (*ArticleDetail, error)
 	return &ArticleDetail{
 		ArticleListItem: item,
 		Content:         RewriteImageProxy(r.Content, s.baseURL+"/api/img-proxy?url="),
+		ShareSig:        s.signArticle(articleID),
+	}, nil
+}
+
+// signArticle 用密钥对文章 id 做 HMAC-SHA256 签名，取前 16 位 hex。
+// 没有密钥遍历 id 也算不出合法签名，防止分享接口被当作全库公开读取。
+func (s *ArticleService) signArticle(articleID int64) string {
+	mac := hmac.New(sha256.New, []byte(s.secret))
+	mac.Write([]byte("article:" + strconv.FormatInt(articleID, 10)))
+	return hex.EncodeToString(mac.Sum(nil))[:16]
+}
+
+// SharedDetail 分享链路详情：验签通过后跳过用户订阅隔离，按文章 id 全局查。
+// 对方没有该文章的状态记录，已读/收藏固定返回 false。
+func (s *ArticleService) SharedDetail(articleID int64, sig string) (*ArticleDetail, error) {
+	if !hmac.Equal([]byte(sig), []byte(s.signArticle(articleID))) {
+		return nil, ErrArticleMissing
+	}
+	var r articleRow
+	err := s.db.Table("articles a").
+		Select(`
+			a.id, a.source_id, src.title AS source_name, a.title, a.summary,
+			a.author, a.link, a.published_at, a.content,
+			0 AS is_read, 0 AS is_favorited`).
+		Joins("JOIN sources src ON src.id = a.source_id").
+		Where("a.id = ?", articleID).
+		Take(&r).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrArticleMissing
+	}
+	if err != nil {
+		return nil, err
+	}
+	item := toListItem(r)
+	return &ArticleDetail{
+		ArticleListItem: item,
+		Content:         RewriteImageProxy(r.Content, s.baseURL+"/api/img-proxy?url="),
+		ShareSig:        s.signArticle(articleID),
 	}, nil
 }
 

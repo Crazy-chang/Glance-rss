@@ -36,12 +36,19 @@ func (h *Handler) articleList(c *gin.Context) {
 }
 
 // GET /api/article/detail/:id
+// ?share=1&sig=xxx 走分享链路：验签后跳过订阅隔离，持有分享链接即可阅读
 func (h *Handler) articleDetail(c *gin.Context) {
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	detail, err := h.article.Detail(uid(c), id)
+	var detail *service.ArticleDetail
+	var err error
+	if c.Query("share") == "1" {
+		detail, err = h.article.SharedDetail(id, c.Query("sig"))
+	} else {
+		detail, err = h.article.Detail(uid(c), id)
+	}
 	if err != nil {
 		handleServiceError(c, err)
 		return
