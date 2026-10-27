@@ -1,9 +1,11 @@
 package fetcher
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -76,20 +78,72 @@ func (f *Fetcher) ValidateFeed(ctx context.Context, feedURL string) (*FeedMeta, 
 
 // FetchSource 抓取单个订阅源：解析 → 清洗入库 → 裁剪条数 → 更新 favicon/抓取状态。
 // 任何失败都会写入 sources.last_error 并返回错误。
+// 使用 ETag / Last-Modified 条件请求，服务端返回 304 时跳过解析节省流量。
 func (f *Fetcher) FetchSource(ctx context.Context, sourceID int64) error {
 	var src model.Source
 	if err := f.db.First(&src, sourceID).Error; err != nil {
 		return fmt.Errorf("订阅源不存在: %w", err)
 	}
 
-	parseCtx, cancel := context.WithTimeout(ctx, f.client.Timeout)
+	reqCtx, cancel := context.WithTimeout(ctx, f.client.Timeout)
 	defer cancel()
 
-	feed, err := f.newParser().ParseURLWithContext(src.FeedURL, parseCtx)
+	// 构造带条件头的请求
+	req, err := http.NewRequestWithContext(reqCtx, "GET", src.FeedURL, nil)
+	if err != nil {
+		f.markError(&src, fmt.Sprintf("请求构造失败: %s", truncateErr(err.Error())))
+		return err
+	}
+	req.Header.Set("User-Agent", ua)
+	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml, */*")
+	if src.ETag != "" {
+		req.Header.Set("If-None-Match", src.ETag)
+	}
+	if src.LastModified != "" {
+		req.Header.Set("If-Modified-Since", src.LastModified)
+	}
+
+	resp, err := f.client.Do(req)
 	if err != nil {
 		f.markError(&src, fmt.Sprintf("抓取失败: %s", truncateErr(err.Error())))
 		return err
 	}
+	defer resp.Body.Close()
+
+	now := time.Now().UTC()
+
+	// 304 Not Modified：内容未变，只更新抓取时间
+	if resp.StatusCode == http.StatusNotModified {
+		src.LastFetchAt = &now
+		src.LastError = ""
+		f.db.Model(&src).Updates(map[string]any{
+			"last_fetch_at": now,
+			"last_error":    "",
+		})
+		slog.Info("订阅源未更新(304)", "source", src.Title)
+		return nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		f.markError(&src, fmt.Sprintf("HTTP %d", resp.StatusCode))
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		f.markError(&src, fmt.Sprintf("读取响应失败: %s", truncateErr(err.Error())))
+		return err
+	}
+
+	feed, err := gofeed.NewParser().Parse(bytes.NewReader(body))
+	if err != nil {
+		f.markError(&src, fmt.Sprintf("解析失败: %s", truncateErr(err.Error())))
+		return err
+	}
+
+	// 记录条件请求标识，供下次使用
+	src.ETag = resp.Header.Get("ETag")
+	src.LastModified = resp.Header.Get("Last-Modified")
 
 	// 用 feed 信息补全订阅源元数据（首次抓取时这些字段通常为空或为 URL）
 	f.fillSourceMeta(&src, feed)
@@ -125,7 +179,6 @@ func (f *Fetcher) FetchSource(ctx context.Context, sourceID int64) error {
 		slog.Warn("裁剪旧文章失败", "source", src.Title, "err", err)
 	}
 
-	now := time.Now().UTC()
 	src.LastFetchAt = &now
 	src.LastError = ""
 	if err := f.db.Save(&src).Error; err != nil {
