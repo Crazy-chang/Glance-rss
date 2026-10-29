@@ -4,6 +4,8 @@ server:
   port: "8080"
   # 对外可访问的基础地址（用于图片代理、favicon 等拼接，按需修改）
   base_url: "http://localhost:8080"
+  # 全局定时抓取间隔（30m/1h/2h），对所有用户统一生效，不暴露给客户端
+  refresh_interval: "1h"
 
 database:
   # SQLite 数据库文件路径（相对后端启动目录）

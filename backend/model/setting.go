@@ -13,6 +13,13 @@ const (
 	FontSizeMedium = "medium" // 正文 17（默认）
 	FontSizeLarge  = "large"  // 正文 19
 
+	LineHeightCompact = "compact" // 行距 1.45
+	LineHeightNormal  = "normal"  // 行距 1.65（默认）
+	LineHeightLoose   = "loose"   // 行距 1.85
+
+	TextAlignLeft    = "left"    // 左对齐（默认）
+	TextAlignJustify = "justify" // 两端对齐
+
 	RefreshInterval30m    = "30m"    // 30 分钟（默认）
 	RefreshInterval1h     = "1h"     // 1 小时
 	RefreshInterval2h     = "2h"     // 2 小时
@@ -23,7 +30,7 @@ const (
 )
 
 // DefaultMaxItems 默认单源最大条数
-const DefaultMaxItems = 100
+const DefaultMaxItems = 300
 
 // Setting 用户设置（随用户创建自动生成一条默认值）
 type Setting struct {
@@ -31,8 +38,10 @@ type Setting struct {
 	UserID          int64     `gorm:"not null;uniqueIndex" json:"user_id"`
 	Theme           string    `gorm:"size:20;not null;default:white" json:"theme"`
 	FontSize        string    `gorm:"size:20;not null;default:medium" json:"font_size"`
-	MaxItems        int       `gorm:"not null;default:100" json:"max_items"`
-	RefreshInterval string    `gorm:"size:20;not null;default:30m" json:"refresh_interval"`
+	LineHeight      string    `gorm:"size:20;not null;default:normal" json:"line_height"`
+	TextAlign       string    `gorm:"size:20;not null;default:left" json:"text_align"`
+	MaxItems        int       `gorm:"not null;default:300" json:"max_items"`
+	RefreshInterval string    `gorm:"size:20;not null;default:1h" json:"refresh_interval"`
 	SortOrder       string    `gorm:"size:10;not null;default:desc" json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -44,8 +53,10 @@ func DefaultSetting(userID int64) Setting {
 		UserID:          userID,
 		Theme:           ThemeWhite,
 		FontSize:        FontSizeMedium,
+		LineHeight:      LineHeightNormal,
+		TextAlign:       TextAlignLeft,
 		MaxItems:        DefaultMaxItems,
-		RefreshInterval: RefreshInterval30m,
+		RefreshInterval: RefreshInterval1h,
 		SortOrder:       SortOrderDesc,
 	}
 }

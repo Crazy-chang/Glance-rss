@@ -11,8 +11,16 @@ import {
   unfavorite
 } from '@/api/article'
 import { getToken } from '@/api/request'
-import type { ArticleDetail as ArticleDetailType } from '@/api/types'
+import type { ArticleDetail as ArticleDetailType, UserSetting } from '@/api/types'
 import { useSetting } from '@/store/setting'
+import {
+  ACCENT,
+  FONT_SIZES,
+  LINE_HEIGHTS,
+  TEXT_ALIGNS,
+  THEME_CHROME,
+  THEME_KEYS
+} from '@/utils/theme'
 import { emitArticleState } from '@/utils/articleEvents'
 import {
   appendNavPage,
@@ -68,14 +76,53 @@ function rewriteContentImages(content: string): string {
   )
 }
 
+// ========== 底部操作栏图标（内联 SVG data URI） ==========
+// 小程序 WXML 不支持 svg 标签，WXSS background-image 对 SVG data URI 兼容最好；
+// 颜色随主题在 JS 侧按 hex 传入，避免 currentColor 在背景图中失效。
+type ActionIconName = 'settings' | 'bookmark' | 'share' | 'prev' | 'next'
+
+const ICON_BODY: Record<ActionIconName, (color: string, filled?: boolean) => string> = {
+  settings: (c) =>
+    `<g fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round">` +
+    `<path d="M6 11h28M6 20h28M6 29h28"/>` +
+    `<circle cx="15" cy="11" r="3.4" fill="${c}" stroke="none"/>` +
+    `<circle cx="26" cy="20" r="3.4" fill="${c}" stroke="none"/>` +
+    `<circle cx="18" cy="29" r="3.4" fill="${c}" stroke="none"/></g>`,
+  bookmark: (c, filled) =>
+    `<path d="M10 7h20a2 2 0 0 1 2 2v25l-12-7-12 7V9a2 2 0 0 1 2-2z" ` +
+    (filled
+      ? `fill="${c}"/>`
+      : `fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"/>`),
+  share: (c) =>
+    `<g fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="M12 24v9h16v-9"/><path d="M20 26V6"/><path d="M14 12l6-6 6 6"/></g>`,
+  prev: (c) =>
+    `<path d="M24 8L13 20l11 12" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  next: (c) =>
+    `<path d="M16 8l11 12-11 12" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+}
+
+function actionIcon(name: ActionIconName, color: string, filled = false): string {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">` +
+    ICON_BODY[name](color, filled) +
+    `</svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
 export default function ArticleDetailPage() {
   const router = useRouter()
   // 分享卡片进入时路径带 share=1&sig=xxx：底部操作栏整体隐藏，只能阅读
   const isShareMode = router.params.share === '1'
   const shareSig = router.params.sig || ''
-  const { setting } = useSetting()
+  const { setting, updateSetting } = useSetting()
   const theme = setting?.theme || 'white'
   const fontSize = setting?.font_size || 'medium'
+  const lineHeight = setting?.line_height || 'normal'
+  const textAlign = setting?.text_align || 'left'
+  // 图标颜色跟随主题（SVG data URI 无法使用 CSS 变量）
+  const iconColor = theme === 'black' ? '#F2F3F5' : '#1C1C1E'
+  const [panelOpen, setPanelOpen] = useState(false)
 
   const [currentId, setCurrentId] = useState(() => Number(router.params.id) || 0)
   const [detail, setDetail] = useState<ArticleDetailType | null>(null)
@@ -205,6 +252,15 @@ export default function ArticleDetailPage() {
     }
   }
 
+  /** 阅读设置：主题 / 字号（即时生效，失败由 request 层提示并回滚） */
+  const changeSetting = async (patch: Partial<UserSetting>) => {
+    try {
+      await updateSetting(patch)
+    } catch (err) {
+      console.error('[ArticleDetail] 更新阅读设置失败', err)
+    }
+  }
+
   const goBack = () => {
     if (Taro.getCurrentPages().length > 1) {
       Taro.navigateBack()
@@ -228,7 +284,7 @@ export default function ArticleDetailPage() {
 
   return (
     <View
-      className={`${styles.page} theme-${theme} fs-${fontSize}`}
+      className={`${styles.page} theme-${theme} fs-${fontSize} lh-${lineHeight} align-${textAlign}`}
       style={{ '--status-bar-h': `${statusBarHeight}px` } as any}
     >
       {/* 自定义导航栏 */}
@@ -285,35 +341,159 @@ export default function ArticleDetailPage() {
 
       {/* 底部操作栏：分享模式整体隐藏，只能阅读 */}
       {!isShareMode && (
-        <View className={styles.bottomBar}>
+        <View
+          className={classnames(styles.bottomBar, { [styles.barDisabled]: !!error })}
+        >
+          <View className={styles.actionBtn} onClick={() => setPanelOpen(true)}>
+            <View
+              className={styles.actionIcon}
+              style={{ backgroundImage: actionIcon('settings', panelOpen ? ACCENT : iconColor) }}
+            />
+            <Text
+              className={classnames(styles.actionLabel, {
+                [styles.actionLabelActive]: panelOpen
+              })}
+            >
+              设置
+            </Text>
+          </View>
+          <View className={styles.actionBtn} onClick={onToggleFavorite}>
+            <View
+              className={styles.actionIcon}
+              style={{
+                backgroundImage: actionIcon(
+                  'bookmark',
+                  detail?.is_favorited ? ACCENT : iconColor,
+                  !!detail?.is_favorited
+                )
+              }}
+            />
+            <Text
+              className={classnames(styles.actionLabel, {
+                [styles.actionLabelActive]: detail?.is_favorited
+              })}
+            >
+              {detail?.is_favorited ? '已收藏' : '收藏'}
+            </Text>
+          </View>
+          <Button className={classnames(styles.shareBtn)} openType="share">
+            <View
+              className={styles.actionIcon}
+              style={{ backgroundImage: actionIcon('share', iconColor) }}
+            />
+            <Text className={styles.actionLabel}>分享</Text>
+          </Button>
           <View
             className={classnames(styles.actionBtn, { [styles.actionDisabled]: !hasPrev })}
             onClick={onPrev}
           >
-            上一篇
+            <View
+              className={styles.actionIcon}
+              style={{ backgroundImage: actionIcon('prev', iconColor) }}
+            />
+            <Text className={styles.actionLabel}>上一篇</Text>
           </View>
-          <View
-            className={classnames(styles.actionBtn, styles.favoriteBtn, {
-              [styles.actionActive]: detail?.is_favorited
-            })}
-            onClick={onToggleFavorite}
-          >
-            {detail?.is_favorited ? '取消收藏' : '收藏'}
-          </View>
-          <Button
-            className={classnames(styles.actionBtn, styles.shareBtn)}
-            openType="share"
-          >
-            分享
-          </Button>
           <View
             className={classnames(styles.actionBtn, {
-              [styles.actionDisabled]: !hasNext,
+              [styles.actionDisabled]: !hasNext || loadingMoreNav,
               [styles.actionLoading]: loadingMoreNav
             })}
             onClick={onNext}
           >
-            {loadingMoreNav ? '加载中' : '下一篇'}
+            <View
+              className={styles.actionIcon}
+              style={{ backgroundImage: actionIcon('next', iconColor) }}
+            />
+            <Text className={styles.actionLabel}>{loadingMoreNav ? '加载中' : '下一篇'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* 阅读设置面板：主题 + 字号，点击蒙层关闭 */}
+      {panelOpen && (
+        <View className={styles.mask} onClick={() => setPanelOpen(false)}>
+          <View className={styles.sheet} onClick={(e) => e.stopPropagation()}>
+            <View className={styles.sheetSection}>
+              <Text className={styles.sheetLabel}>主题</Text>
+              <View className={styles.themeRow}>
+                {THEME_KEYS.map((key) => (
+                  <View
+                    key={key}
+                    className={styles.themeItem}
+                    onClick={() => changeSetting({ theme: key })}
+                  >
+                    <View
+                      className={classnames(styles.themeSwatch, {
+                        [styles.themeSwatchActive]: theme === key
+                      })}
+                      style={{ background: THEME_CHROME[key].swatch }}
+                    />
+                    <Text
+                      className={classnames(styles.themeName, {
+                        [styles.themeNameActive]: theme === key
+                      })}
+                    >
+                      {THEME_CHROME[key].name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.sheetSection}>
+              <Text className={styles.sheetLabel}>字号</Text>
+              <View className={styles.segment}>
+                {FONT_SIZES.map((item) => (
+                  <View
+                    key={item.key}
+                    className={classnames(styles.segmentItem, {
+                      [styles.segmentItemActive]: fontSize === item.key
+                    })}
+                    onClick={() => changeSetting({ font_size: item.key })}
+                  >
+                    {item.name}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.sheetSection}>
+              <Text className={styles.sheetLabel}>行距</Text>
+              <View className={styles.segment}>
+                {LINE_HEIGHTS.map((item) => (
+                  <View
+                    key={item.key}
+                    className={classnames(styles.segmentItem, {
+                      [styles.segmentItemActive]: lineHeight === item.key
+                    })}
+                    onClick={() => changeSetting({ line_height: item.key })}
+                  >
+                    {item.name}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.sheetSection}>
+              <Text className={styles.sheetLabel}>对齐</Text>
+              <View className={styles.segment}>
+                {TEXT_ALIGNS.map((item) => (
+                  <View
+                    key={item.key}
+                    className={classnames(styles.segmentItem, {
+                      [styles.segmentItemActive]: textAlign === item.key
+                    })}
+                    onClick={() => changeSetting({ text_align: item.key })}
+                  >
+                    {item.name}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.sheetDone} onClick={() => setPanelOpen(false)}>
+              完成
+            </View>
           </View>
         </View>
       )}

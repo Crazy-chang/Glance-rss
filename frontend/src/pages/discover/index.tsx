@@ -1,7 +1,7 @@
 import { Text, View } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import classnames from 'classnames'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getDiscoverList, subscribeRecommend } from '@/api/discover'
 import type { DiscoverResult, DiscoverSource } from '@/api/types'
 import EmptyState from '@/components/EmptyState'
@@ -21,7 +21,6 @@ export default function DiscoverPage() {
   const [result, setResult] = useState<DiscoverResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<Record<number, boolean>>({})
-  const firstShowRef = useRef(true)
 
   const load = useCallback(async () => {
     try {
@@ -36,15 +35,6 @@ export default function DiscoverPage() {
   useEffect(() => {
     load()
   }, [load])
-
-  // 切回 Tab 时静默刷新订阅状态
-  useDidShow(() => {
-    if (firstShowRef.current) {
-      firstShowRef.current = false
-      return
-    }
-    getDiscoverList().then(setResult).catch(() => {})
-  })
 
   const onSubscribe = async (item: DiscoverSource) => {
     if (item.subscribed || subscribing[item.id]) return

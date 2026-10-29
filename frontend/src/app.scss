@@ -18,6 +18,8 @@ page {
   --fs-title: 36px;
   --fs-body: 30px;
   --fs-meta: 22px;
+  /* 仅正文随字号档位变化 */
+  --fs-read: 30px;
 
   background-color: #f7f8fa;
   color: #1a1a1a;
@@ -63,21 +65,39 @@ page {
   --divider: rgba(43, 58, 46, 0.08);
 }
 
-/* ---- 阅读字号三档：仅详情页根节点挂类时生效 ---- */
+/* ---- 阅读字号三档：仅详情页根节点挂类时生效，只影响标题与正文 ---- */
 .fs-small {
-  --fs-body: 26px;
   --fs-title: 32px;
-  --fs-meta: 20px;
+  --fs-read: 26px;
 }
 
 .fs-medium {
-  --fs-body: 30px;
   --fs-title: 36px;
-  --fs-meta: 22px;
+  --fs-read: 30px;
 }
 
 .fs-large {
-  --fs-body: 34px;
   --fs-title: 40px;
-  --fs-meta: 24px;
+  --fs-read: 34px;
+}
+
+/* 行距 / 对齐：同样只作用于详情页正文 */
+.lh-compact {
+  --read-lh: 1.45;
+}
+
+.lh-normal {
+  --read-lh: 1.65;
+}
+
+.lh-loose {
+  --read-lh: 1.85;
+}
+
+.align-left {
+  --read-align: left;
+}
+
+.align-justify {
+  --read-align: justify;
 }

@@ -10,6 +10,9 @@ export function getToken(): string {
 
 // loginPromise 保证全应用只有一个登录请求在飞
 let loginPromise: Promise<string> | null = null
+// 登录失败冷却时间（ms）：断网时避免每个请求都再打一次 /auth/login
+const LOGIN_FAIL_COOLDOWN = 3000
+let loginFailedAt = 0
 
 /**
  * 静默登录：wx.login 取 code 换 JWT。
@@ -79,7 +82,15 @@ function buildQuery(query?: RequestOptions['query']): string {
  */
 export async function request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!getToken()) {
-    await login()
+    if (Date.now() - loginFailedAt < LOGIN_FAIL_COOLDOWN) {
+      throw new Error('网络异常，请稍后再试')
+    }
+    try {
+      await login()
+    } catch (err) {
+      loginFailedAt = Date.now()
+      throw err
+    }
   }
 
   const url = `${BASE_URL}/api${path}${buildQuery(options.query)}`

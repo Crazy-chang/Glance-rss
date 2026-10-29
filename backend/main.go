@@ -38,6 +38,12 @@ func main() {
 		slog.Error("推荐源种子写入失败", "err", err)
 		os.Exit(1)
 	}
+	// 客户端不再开放条数修改，存量用户统一归一化为默认值
+	if err := db.Model(&model.Setting{}).Where("max_items <> ?", model.DefaultMaxItems).
+		Update("max_items", model.DefaultMaxItems).Error; err != nil {
+		slog.Error("统一单源最大条数失败", "err", err)
+		os.Exit(1)
+	}
 	slog.Info("数据库就绪", "path", cfg.Database.Path)
 
 	// 抓取器与定时调度器
@@ -45,7 +51,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	sched := scheduler.New(db, f, cfg.Fetch.Concurrency)
+	sched := scheduler.New(db, f, cfg.Fetch.Concurrency, cfg.Server.RefreshInterval)
 	sched.Start(ctx)
 	defer sched.Stop()
 

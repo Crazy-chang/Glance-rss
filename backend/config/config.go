@@ -20,6 +20,8 @@ type Config struct {
 type ServerConfig struct {
 	Port    string `yaml:"port"`
 	BaseURL string `yaml:"base_url"`
+	// RefreshInterval 全局定时抓取间隔（30m/1h/2h），不暴露给客户端
+	RefreshInterval string `yaml:"refresh_interval"`
 }
 
 type DatabaseConfig struct {
@@ -62,6 +64,11 @@ func MustLoad() *Config {
 	// 默认值兜底
 	if cfg.Server.Port == "" {
 		cfg.Server.Port = "8080"
+	}
+	switch cfg.Server.RefreshInterval {
+	case "30m", "1h", "2h":
+	default:
+		cfg.Server.RefreshInterval = "1h"
 	}
 	if cfg.JWT.ExpireDays <= 0 {
 		cfg.JWT.ExpireDays = 30

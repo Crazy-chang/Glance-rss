@@ -26,7 +26,8 @@
 
 .chipActive {
   font-weight: 600;
+  border: 1rpx solid var(--accent);
   border-top: 2rpx solid var(--accent);
-  border-bottom: 4rpx solid var(--accent);
+  border-bottom: 5rpx solid var(--accent);
   color: var(--accent);
 }

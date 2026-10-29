@@ -148,8 +148,9 @@
 .content {
   padding: 24px 0 32px;
   color: var(--text);
-  font-size: var(--fs-body);
-  line-height: 1.65;
+  font-size: var(--fs-read);
+  line-height: var(--read-lh, 1.65);
+  text-align: var(--read-align, left);
   word-break: break-word;
   overflow-x: hidden;
 }
@@ -162,7 +163,7 @@
   padding: 80px 0;
 }
 
-/* 底部操作栏：固定底部，4 个按钮均分 */
+/* 底部操作栏：固定底部，5 个按钮均分 */
 .bottomBar {
   position: fixed;
   bottom: 0;
@@ -170,35 +171,55 @@
   right: 0;
   z-index: 10;
   display: flex;
-  align-items: center;
-  height: 96px;
-  padding-bottom: env(safe-area-inset-bottom);
+  align-items: stretch;
+  padding: 10px 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: var(--card);
   border-top: 1rpx solid var(--divider);
 }
 
 .actionBtn {
   flex: 1;
-  height: 96px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   color: var(--text);
-  font-size: 30px;
 
   &:active {
     opacity: 0.6;
   }
 }
 
-.actionDisabled {
-  color: var(--text-2);
-  opacity: 0.5;
+/* 加载失败：整条操作栏置灰且不可点 */
+.barDisabled {
+  opacity: 0.4;
   pointer-events: none;
 }
 
-.actionActive {
+/* 图标：内联 SVG data URI 背景图（小程序 WXSS 不支持 svg 标签） */
+.actionIcon {
+  width: 40px;
+  height: 40px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+.actionLabel {
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.actionLabelActive {
   color: var(--accent);
+}
+
+.actionDisabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .actionLoading {
@@ -209,14 +230,125 @@
 .shareBtn {
   @include button-reset;
   flex: 1;
-  height: 96px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   color: var(--text);
-  font-size: 30px;
 
   &:active {
     opacity: 0.6;
+  }
+}
+
+/* ---- 阅读设置面板 ---- */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 32px 24px calc(24px + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+}
+
+.sheetSection {
+  margin-bottom: 36px;
+}
+
+.sheetLabel {
+  display: block;
+  margin-bottom: 20px;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.themeRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.themeItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.themeSwatch {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  border: 3px solid var(--divider);
+  box-sizing: border-box;
+}
+
+.themeSwatchActive {
+  border-color: var(--accent);
+}
+
+.themeName {
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+.themeNameActive {
+  color: var(--accent);
+}
+
+.segment {
+  display: flex;
+  padding: 4px;
+  background: var(--field);
+  border-radius: $radius-chip;
+}
+
+.segmentItem {
+  flex: 1;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+  border-radius: $radius-chip;
+}
+
+.segmentItemActive {
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sheetDone {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--field);
+  border-radius: $radius-chip;
+  color: var(--text);
+  font-size: var(--fs-body);
+
+  &:active {
+    opacity: 0.7;
   }
 }

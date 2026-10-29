@@ -3,14 +3,18 @@ import styles from './index.module.scss'
 
 interface Props {
   text: string
+  subText?: string
   actionText?: string
   onAction?: () => void
 }
 
-export default function EmptyState({ text, actionText, onAction }: Props) {
+export default function EmptyState({ text, subText, actionText, onAction }: Props) {
   return (
     <View className={styles.wrap}>
-      <Text className={styles.text}>{text}</Text>
+      <View className={styles.textGroup}>
+        <Text className={styles.text}>{text}</Text>
+        {subText && <Text className={styles.sub}>{subText}</Text>}
+      </View>
       {actionText && (
         <View className={styles.action} onClick={onAction}>
           {actionText}

@@ -69,3 +69,14 @@ export const FONT_SIZES = [
   { key: 'medium', name: '中' },
   { key: 'large', name: '大' }
 ]
+
+export const LINE_HEIGHTS = [
+  { key: 'compact', name: '紧凑' },
+  { key: 'normal', name: '标准' },
+  { key: 'loose', name: '宽松' }
+]
+
+export const TEXT_ALIGNS = [
+  { key: 'left', name: '左对齐' },
+  { key: 'justify', name: '两端对齐' }
+]

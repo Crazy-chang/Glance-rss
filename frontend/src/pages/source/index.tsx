@@ -32,6 +32,8 @@ export default function SourcePage() {
   const [dialogVisible, setDialogVisible] = useState(false)
   const [feedUrl, setFeedUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [menu, setMenu] = useState<{ item: SourceItem } | null>(null)
   const [renameState, setRenameState] = useState<{ id: number; value: string; submitting: boolean } | null>(null)
@@ -79,14 +81,23 @@ export default function SourcePage() {
   })
 
   usePullDownRefresh(async () => {
+    const startedAt = Date.now()
+    setRefreshing(true)
+    // 原生下拉动画会和列表回弹抢节奏，立刻收掉，改用自己的转圈
+    Taro.stopPullDownRefresh()
     try {
       await refreshStart()
     } catch (err) {
       console.error('[Source] refresh/start 失败', err)
     }
-    await sleep(1500)
-    await load()
-    Taro.stopPullDownRefresh()
+    await sleep(800)
+    try {
+      await load()
+    } finally {
+      const remain = 600 - (Date.now() - startedAt)
+      if (remain > 0) await sleep(remain)
+      setRefreshing(false)
+    }
   })
 
   const goArticles = (item: SourceItem) => {
@@ -97,6 +108,7 @@ export default function SourcePage() {
 
   const openAdd = () => {
     setFeedUrl('')
+    setAddError('')
     setDialogVisible(true)
   }
 
@@ -106,14 +118,16 @@ export default function SourcePage() {
       Taro.showToast({ title: '请输入 RSS 地址', icon: 'none' })
       return
     }
+    setAddError('')
     setSubmitting(true)
     try {
       await addSource(url)
       setDialogVisible(false)
       Taro.showToast({ title: '添加成功', icon: 'success' })
       await load()
-    } catch {
-      // request 层已 toast（RSS 校验失败、重复订阅等）
+    } catch (err: any) {
+      // 失败原因留在弹窗内红色展示，输入内容保留
+      setAddError(err?.message || '添加失败，请稍后重试')
     } finally {
       setSubmitting(false)
     }
@@ -213,9 +227,8 @@ export default function SourcePage() {
           </View>
         ) : list.length === 0 ? (
           <EmptyState
-            text="还没有订阅源"
-            actionText="推荐订阅源"
-            onAction={() => Taro.navigateTo({ url: '/pages/discover/index' })}
+            text="暂无订阅源"
+            subText="添加后，新文章会进入「文章」页，也会归到该订阅源下"
           />
         ) : (
           <View className={styles.list}>
@@ -325,10 +338,20 @@ export default function SourcePage() {
         visible={dialogVisible}
         value={feedUrl}
         submitting={submitting}
-        onChange={setFeedUrl}
+        error={addError}
+        onChange={(v) => {
+          setFeedUrl(v)
+          setAddError('')
+        }}
         onCancel={() => setDialogVisible(false)}
         onConfirm={onConfirmAdd}
       />
+
+      {refreshing && (
+        <View className={styles.refreshTip}>
+          <Spinner size={30} />
+        </View>
+      )}
     </View>
   )
 }
@@ -381,15 +404,27 @@ interface AddDialogProps {
   visible: boolean
   value: string
   submitting: boolean
+  error: string
   onChange: (v: string) => void
   onCancel: () => void
   onConfirm: () => void
 }
 
-function AddDialog({ visible, value, submitting, onChange, onCancel, onConfirm }: AddDialogProps) {
+function AddDialog({
+  visible,
+  value,
+  submitting,
+  error,
+  onChange,
+  onCancel,
+  onConfirm
+}: AddDialogProps) {
   if (!visible) return null
+  const close = () => {
+    if (!submitting) onCancel()
+  }
   return (
-    <View className={styles.mask} onClick={onCancel} catchMove>
+    <View className={styles.mask} onClick={close} catchMove>
       <View className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <Text className={styles.dialogTitle}>添加订阅</Text>
         <Input
@@ -400,8 +435,28 @@ function AddDialog({ visible, value, submitting, onChange, onCancel, onConfirm }
           focus
           onInput={(e) => onChange(e.detail.value)}
         />
-        <View className={styles.dialogActions}>
-          <Text className={styles.dialogBtn} onClick={onCancel}>取消</Text>
+        {/* 状态区固定高度，无论显示加载还是错误都不改变弹窗高度 */}
+        <View className={styles.dialogStatus}>
+          {submitting && (
+            <View className={styles.dialogStatusRow}>
+              <Spinner size={28} />
+              <Text className={styles.dialogStatusText}>正在解析订阅源…</Text>
+            </View>
+          )}
+          {!submitting && !!error && (
+            <Text className={styles.dialogStatusError}>{error}</Text>
+          )}
+        </View>
+        <View className={classnames(styles.dialogActions, styles.dialogActionsTight)}>
+          <Text
+            className={classnames(
+              styles.dialogBtn,
+              submitting && styles.dialogBtnDisabled
+            )}
+            onClick={close}
+          >
+            取消
+          </Text>
           <Text
             className={classnames(
               styles.dialogBtn,

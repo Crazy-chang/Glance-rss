@@ -22,6 +22,8 @@ func NewSettingService(db *gorm.DB) *SettingService {
 type SettingDTO struct {
 	Theme           string `json:"theme"`
 	FontSize        string `json:"font_size"`
+	LineHeight      string `json:"line_height"`
+	TextAlign       string `json:"text_align"`
 	MaxItems        int    `json:"max_items"`
 	RefreshInterval string `json:"refresh_interval"`
 	SortOrder       string `json:"sort_order"`
@@ -29,10 +31,12 @@ type SettingDTO struct {
 
 // 合法取值白名单
 var (
-	validThemes    = []string{model.ThemeWhite, model.ThemeBlack, model.ThemeYellow, model.ThemeGreen}
-	validFonts     = []string{model.FontSizeSmall, model.FontSizeMedium, model.FontSizeLarge}
-	validItems     = []int{100, 200, 300}
-	validIntervals = []string{
+	validThemes      = []string{model.ThemeWhite, model.ThemeBlack, model.ThemeYellow, model.ThemeGreen}
+	validFonts       = []string{model.FontSizeSmall, model.FontSizeMedium, model.FontSizeLarge}
+	validLineHeights = []string{model.LineHeightCompact, model.LineHeightNormal, model.LineHeightLoose}
+	validTextAligns  = []string{model.TextAlignLeft, model.TextAlignJustify}
+	validItems       = []int{100, 200, 300}
+	validIntervals   = []string{
 		model.RefreshInterval30m, model.RefreshInterval1h,
 		model.RefreshInterval2h, model.RefreshIntervalManual,
 	}
@@ -43,6 +47,8 @@ var (
 type UpdateSettingParams struct {
 	Theme           *string `json:"theme"`
 	FontSize        *string `json:"font_size"`
+	LineHeight      *string `json:"line_height"`
+	TextAlign       *string `json:"text_align"`
 	MaxItems        *int    `json:"max_items"`
 	RefreshInterval *string `json:"refresh_interval"`
 	SortOrder       *string `json:"sort_order"`
@@ -70,6 +76,12 @@ func (s *SettingService) Update(userID int64, p UpdateSettingParams) (*SettingDT
 		return nil, ErrSettingValue
 	}
 	if p.FontSize != nil && !slices.Contains(validFonts, *p.FontSize) {
+		return nil, ErrSettingValue
+	}
+	if p.LineHeight != nil && !slices.Contains(validLineHeights, *p.LineHeight) {
+		return nil, ErrSettingValue
+	}
+	if p.TextAlign != nil && !slices.Contains(validTextAligns, *p.TextAlign) {
 		return nil, ErrSettingValue
 	}
 	if p.MaxItems != nil && !slices.Contains(validItems, *p.MaxItems) {
@@ -102,6 +114,14 @@ func (s *SettingService) Update(userID int64, p UpdateSettingParams) (*SettingDT
 		setting.FontSize = *p.FontSize
 		updates["font_size"] = *p.FontSize
 	}
+	if p.LineHeight != nil {
+		setting.LineHeight = *p.LineHeight
+		updates["line_height"] = *p.LineHeight
+	}
+	if p.TextAlign != nil {
+		setting.TextAlign = *p.TextAlign
+		updates["text_align"] = *p.TextAlign
+	}
 	if p.MaxItems != nil {
 		setting.MaxItems = *p.MaxItems
 		updates["max_items"] = *p.MaxItems
@@ -126,6 +146,8 @@ func toSettingDTO(s model.Setting) *SettingDTO {
 	return &SettingDTO{
 		Theme:           s.Theme,
 		FontSize:        s.FontSize,
+		LineHeight:      s.LineHeight,
+		TextAlign:       s.TextAlign,
 		MaxItems:        s.MaxItems,
 		RefreshInterval: s.RefreshInterval,
 		SortOrder:       s.SortOrder,

@@ -38,6 +38,8 @@ export interface ArticleDetail extends ArticleListItem {
 export interface UserSetting {
   theme: string
   font_size: string
+  line_height: string
+  text_align: string
   max_items: number
   refresh_interval: string
   sort_order: string

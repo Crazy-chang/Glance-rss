@@ -16,8 +16,10 @@ const SettingContext = createContext<SettingContextValue>({
 export const DEFAULT_SETTING: UserSetting = {
   theme: 'white',
   font_size: 'medium',
-  max_items: 100,
-  refresh_interval: '30m',
+  line_height: 'normal',
+  text_align: 'left',
+  max_items: 300,
+  refresh_interval: '1h',
   sort_order: 'desc'
 }
 

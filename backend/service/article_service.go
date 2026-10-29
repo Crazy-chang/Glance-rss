@@ -107,21 +107,13 @@ func (s *ArticleService) List(p ArticleListParams) (PageResult, error) {
 		return PageResult{}, err
 	}
 
-	var setting model.Setting
-	order := "a.published_at DESC, a.id DESC"
-	if err := s.db.Where("user_id = ?", p.UserID).First(&setting).Error; err == nil {
-		if setting.SortOrder == model.SortOrderAsc {
-			order = "a.published_at ASC, a.id ASC"
-		}
-	}
-
 	var rows []articleRow
 	err := q.Select(`
 			a.id, a.source_id, src.title AS source_name, a.title, a.summary,
 			a.author, a.link, a.published_at, a.content,
 			COALESCE(st.is_read, 0) AS is_read,
 			COALESCE(st.is_favorited, 0) AS is_favorited`).
-		Order(order).
+		Order("a.published_at DESC, a.id DESC").
 		Offset((p.Page - 1) * p.Size).
 		Limit(p.Size).
 		Scan(&rows).Error

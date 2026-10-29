@@ -15,24 +15,25 @@ import (
 
 // sourceDueRow 到期检查查询行
 type sourceDueRow struct {
-	ID              int64
-	LastFetchAt     *time.Time
-	RefreshInterval string
+	ID          int64
+	LastFetchAt *time.Time
 }
 
 // Scheduler 定时调度器：每分钟检查一次，到期的源交给 fetcher 并发抓取
 type Scheduler struct {
-	db          *gorm.DB
-	fetcher     *fetcher.Fetcher
-	concurrency int
-	cron        *cron.Cron
+	db              *gorm.DB
+	fetcher         *fetcher.Fetcher
+	concurrency     int
+	refreshInterval string
+	cron            *cron.Cron
 }
 
-func New(db *gorm.DB, f *fetcher.Fetcher, concurrency int) *Scheduler {
+func New(db *gorm.DB, f *fetcher.Fetcher, concurrency int, refreshInterval string) *Scheduler {
 	return &Scheduler{
-		db:          db,
-		fetcher:     f,
-		concurrency: concurrency,
+		db:              db,
+		fetcher:         f,
+		concurrency:     concurrency,
+		refreshInterval: refreshInterval,
 	}
 }
 
@@ -46,7 +47,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 	// 启动后先跑一轮，让新添加/从未抓取的源尽快入库，不用干等 1 分钟
 	go s.runOnce(ctx)
-	slog.Info("定时抓取调度器已启动", "check_interval", "1m", "concurrency", s.concurrency)
+	slog.Info("定时抓取调度器已启动", "check_interval", "1m", "refresh_interval", s.refreshInterval, "concurrency", s.concurrency)
 }
 
 // Stop 停止调度
@@ -56,12 +57,11 @@ func (s *Scheduler) Stop() {
 	}
 }
 
-// runOnce 查出全部源（关联属主设置），筛出到期源并发抓取
+// runOnce 查出全部源，按全局间隔筛出到期源并发抓取
 func (s *Scheduler) runOnce(ctx context.Context) {
 	var rows []sourceDueRow
 	err := s.db.Table("sources").
-		Select("sources.id AS id, sources.last_fetch_at AS last_fetch_at, settings.refresh_interval AS refresh_interval").
-		Joins("LEFT JOIN settings ON settings.user_id = sources.user_id").
+		Select("id AS id, last_fetch_at AS last_fetch_at").
 		Scan(&rows).Error
 	if err != nil {
 		slog.Warn("调度器查询订阅源失败", "err", err)
@@ -71,7 +71,7 @@ func (s *Scheduler) runOnce(ctx context.Context) {
 	now := time.Now()
 	var dueIDs []int64
 	for _, r := range rows {
-		if IsDue(r.LastFetchAt, r.RefreshInterval, now) {
+		if IsDue(r.LastFetchAt, s.refreshInterval, now) {
 			dueIDs = append(dueIDs, r.ID)
 		}
 	}

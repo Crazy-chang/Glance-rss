@@ -18,9 +18,53 @@
   background: var(--header-bg, var(--bg));
 }
 
-/* 搜索行：右侧让出胶囊按钮宽度，避免遮挡 */
+/* 搜索行：source-article 模式下与胶囊齐平，右侧让出胶囊按钮宽度 */
 .searchRow {
   margin-right: var(--capsule-w, 0px);
+}
+
+/* 首页标题行：与右上角胶囊齐平；滚动收起时高度归零淡出，搜索框上移补位 */
+.titleRow {
+  display: flex;
+  align-items: center;
+  height: $control-h;
+  overflow: hidden;
+  opacity: 1;
+  transition: height 0.3s ease, opacity 0.3s ease;
+}
+
+/* 对齐订阅页 .title：40px / weight 600 / var(--text) / line-height 1 */
+.pageTitle {
+  color: var(--text);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 对齐订阅页 .count：30px / var(--text-2) / margin-left 8px */
+.pageCount {
+  margin-left: 8px;
+  font-size: 30px;
+  color: var(--text-2);
+  line-height: 1;
+}
+
+/* 首页展开态：搜索框位于标题行下方，全宽显示，与标题行留 6px 垂直间距 */
+.collapsible .searchRow {
+  margin-right: 0;
+  margin-top: 6px;
+  transition: margin-right 0.3s ease, margin-top 0.3s ease;
+}
+
+/* 收起态：标题淡出，搜索框上移贴顶让出胶囊宽度（无间距） */
+.collapsed .titleRow {
+  height: 0;
+  opacity: 0;
+}
+.collapsed .searchRow {
+  margin-right: var(--capsule-w, 0px);
+  margin-top: 0;
 }
 
 .searchBox {
@@ -67,6 +111,15 @@
   padding: calc(var(--status-bar-h, 0px) + 190px) $page-padding 0;
 }
 
+/* 首页：展开时为标题行 + 搜索框间距让出高度，收起后回落，与头部动画同步 */
+.collapsible .body {
+  padding-top: calc(var(--status-bar-h, 0px) + 265px);
+  transition: padding-top 0.3s ease;
+}
+.collapsible.collapsed .body {
+  padding-top: calc(var(--status-bar-h, 0px) + 190px);
+}
+
 .firstLoading {
   padding-top: 200px;
   display: flex;
@@ -78,4 +131,16 @@
   display: flex;
   flex-direction: column;
   gap: $card-gap;
+}
+
+/* 下拉刷新：只留转圈，无背景无文案，居中显示避免与顶部重叠 */
+.refreshTip {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

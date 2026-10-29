@@ -3,25 +3,14 @@ import Taro, { useDidShow, usePullDownRefresh, useReachBottom } from '@tarojs/ta
 import { getArticleList } from '@/api/article'
 import { getSourceList } from '@/api/source'
 import { refreshStart } from '@/api/common'
-import { useSetting } from '@/store/setting'
 import type { ArticleListItem, FilterType } from '@/api/types'
 import { onArticleState } from '@/utils/articleEvents'
 import { syncNavContextIds } from '@/utils/navContext'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-/** refresh_interval 字符串 → 毫秒，manual 表示不静默刷新（返回 0 时跳过），非法值回退 30 分钟 */
-function intervalToMs(interval?: string): number {
-  if (interval === 'manual') return 0
-  const m = /^(\d+)([smh])$/.exec(interval || '')
-  if (!m) return 30 * 60 * 1000
-  const num = Number(m[1])
-  const unit = m[2]
-  if (unit === 's') return num * 1000
-  if (unit === 'm') return num * 60 * 1000
-  if (unit === 'h') return num * 60 * 60 * 1000
-  return 30 * 60 * 1000
-}
+// 后端定时抓取间隔固定 1 小时，前端静默刷新节奏与此保持一致
+const SILENT_REFRESH_MS = 60 * 60 * 1000
 
 interface Options {
   /** 限定单个订阅源（订阅文章页），不传为全部订阅 */
@@ -32,11 +21,11 @@ interface Options {
 
 export function useArticleList(options: Options = {}) {
   const { sourceId = 0, withSourceProbe = false } = options
-  const { setting } = useSetting()
 
   const [list, setList] = useState<ArticleListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState<FilterType>('unread')
   const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -47,8 +36,8 @@ export function useArticleList(options: Options = {}) {
   // 固定分页大小（与 max_items 无关——max_items 是后端每源抓取截断数）
   const PAGE_SIZE = 50
 
-  // 从用户设置读取的动态值（ref 存，避免触发重渲染；变化时通过单独 useEffect 同步）
-  const silentDelayRef = useRef(intervalToMs(setting?.refresh_interval))
+  // 静默刷新间隔（ref 存，避免触发重渲染）
+  const silentDelayRef = useRef(SILENT_REFRESH_MS)
 
   // 回调里读取最新值的 refs
   const listRef = useRef<ArticleListItem[]>([])
@@ -88,7 +77,7 @@ export function useArticleList(options: Options = {}) {
   )
 
   const replaceLoad = useCallback(
-    async (showLoading: boolean) => {
+    async (showLoading: boolean): Promise<boolean> => {
       if (showLoading) setLoading(true)
       const seq = ++reqSeqRef.current
       try {
@@ -99,7 +88,7 @@ export function useArticleList(options: Options = {}) {
           search: paramsRef.current.keyword,
           source_id: sourceId || undefined
         })
-        if (seq !== reqSeqRef.current) return
+        if (seq !== reqSeqRef.current) return true
         applyList(res.list, 1, res.hasMore, res.total)
         const isEmptyAll =
           res.list.length === 0 && paramsRef.current.filter === 'all' && !paramsRef.current.keyword
@@ -108,8 +97,10 @@ export function useArticleList(options: Options = {}) {
         } else {
           setNoSource(false)
         }
+        return true
       } catch (err) {
         console.error('[ArticleList] 首页加载失败', err)
+        return false
       } finally {
         if (seq === reqSeqRef.current) setLoading(false)
       }
@@ -194,19 +185,6 @@ export function useArticleList(options: Options = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 用户设置变化：refresh_interval 实时生效；sort_order 后端从 setting 读，变化后触发 reload
-  useEffect(() => {
-    silentDelayRef.current = intervalToMs(setting?.refresh_interval)
-  }, [setting?.refresh_interval])
-
-  useEffect(() => {
-    // sort_order 后端从用户 setting 读，不需要前端传参；设置变化后重拉
-    replaceLoad(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setting?.sort_order])
-
-  // max_items 变化不触发前端 reload——它是后端抓取截断数，改完等下次 refresh/start 生效即可
-
   // 详情页状态变更广播 -> 本地更新（不 refetch）
   useEffect(
     () =>
@@ -232,26 +210,43 @@ export function useArticleList(options: Options = {}) {
     []
   )
 
-  // 下拉刷新：触发后端抓取 -> 等待 -> 重拉第一页
+  // 下拉刷新：立即收起原生下拉动画，自绘转圈；轮询首页直到有更新（最多 6s）
   usePullDownRefresh(async () => {
+    const startedAt = Date.now()
+    setRefreshing(true)
+    // 原生下拉动画会和列表回弹抢节奏，立刻收掉，改用自己的转圈
+    Taro.stopPullDownRefresh()
     try {
       await refreshStart()
     } catch (err) {
       console.error('[ArticleList] refresh/start 失败', err)
     }
-    await sleep(2500)
-    await replaceLoad(false)
-    Taro.stopPullDownRefresh()
+    // 后端抓取是异步的，固定等待容易"白等"：改为轮询，总数变化即提前结束
+    const beforeTotal = totalRef.current
+    const deadline = Date.now() + 6000
+    try {
+      while (Date.now() < deadline) {
+        await sleep(800)
+        const ok = await replaceLoad(false)
+        // 请求失败（网络/服务异常）不再继续轮询，避免反复打同一个接口
+        if (!ok) break
+        if (totalRef.current !== beforeTotal) break
+      }
+    } finally {
+      // 至少展示 600ms，避免提示一闪而过
+      const remain = 600 - (Date.now() - startedAt)
+      if (remain > 0) await sleep(remain)
+      setRefreshing(false)
+    }
   })
 
-  // 切回 Tab / 返回页面：后台触发刷新，间隔由用户设置决定，"第一页且非搜索态"静默替换
+  // 切回 Tab / 返回页面：后台触发刷新，固定间隔后静默替换"第一页且非搜索态"
   useDidShow(() => {
     if (firstShowRef.current) {
       firstShowRef.current = false
       return
     }
     const delay = silentDelayRef.current
-    if (delay === 0) return // manual 模式：不静默刷新
     refreshStart().catch((err) => console.error('[ArticleList] 静默刷新触发失败', err))
     silentTimerRef.current = setTimeout(() => {
       if (
@@ -289,6 +284,7 @@ export function useArticleList(options: Options = {}) {
     list,
     loading,
     loadingMore,
+    refreshing,
     filter,
     keyword,
     searchInput,

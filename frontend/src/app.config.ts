@@ -4,8 +4,7 @@ export default defineAppConfig({
     'pages/discover/index',
     'pages/source/index',
     'pages/article-detail/index',
-    'pages/source-article/index',
-    'pages/setting/index'
+    'pages/source-article/index'
   ],
   window: {
     backgroundTextStyle: 'light',
@@ -31,12 +30,6 @@ export default defineAppConfig({
         text: '订阅',
         iconPath: 'assets/tab/source.png',
         selectedIconPath: 'assets/tab/source-active.png'
-      },
-      {
-        pagePath: 'pages/setting/index',
-        text: '设置',
-        iconPath: 'assets/tab/setting.png',
-        selectedIconPath: 'assets/tab/setting-active.png'
       }
     ]
   }

@@ -6,8 +6,13 @@ export function getSourceList() {
 }
 
 // 手动添加订阅源：校验 RSS -> 查重 -> 创建 -> 异步首抓
+// silent：失败原因在弹窗内红色文案展示，不再额外 toast
 export function addSource(feedUrl: string) {
-  return request<SourceItem>('/source/add', { method: 'POST', data: { feed_url: feedUrl } })
+  return request<SourceItem>('/source/add', {
+    method: 'POST',
+    data: { feed_url: feedUrl },
+    silent: true
+  })
 }
 
 // 删除订阅源：事务级联删除文章与状态
