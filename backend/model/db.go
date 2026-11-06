@@ -55,14 +55,25 @@ func AutoMigrate(db *gorm.DB) error {
 	)
 }
 
-// SeedRecommendSources 推荐源表为空时写入内置 30 条种子数据
+// SeedRecommendSources 把 defaultRecommendSources 中缺失的推荐源 Upsert 到数据库
+// 按 FeedURL 去重：已存在则保留数据库中的版本（不覆盖 Category/Title 等字段），不存在则新增
 func SeedRecommendSources(db *gorm.DB) error {
-	var count int64
-	if err := db.Model(&RecommendSource{}).Count(&count).Error; err != nil {
+	var existing []RecommendSource
+	if err := db.Find(&existing).Error; err != nil {
 		return err
 	}
-	if count > 0 {
+	existMap := make(map[string]bool, len(existing))
+	for _, s := range existing {
+		existMap[s.FeedURL] = true
+	}
+	var toInsert []RecommendSource
+	for _, s := range defaultRecommendSources {
+		if !existMap[s.FeedURL] {
+			toInsert = append(toInsert, s)
+		}
+	}
+	if len(toInsert) == 0 {
 		return nil
 	}
-	return db.Create(&defaultRecommendSources).Error
+	return db.Create(&toInsert).Error
 }

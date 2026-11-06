@@ -23,6 +23,8 @@ interface Props {
 
 function emptyText(filter: FilterType, keyword: string, noSource: boolean, withSourceProbe: boolean): string {
   if (keyword) return '未找到相关文章'
+  // 没有任何订阅时，任何筛选下都优先引导去订阅
+  if (withSourceProbe && noSource) return '还没有订阅内容'
   switch (filter) {
     case 'unread':
       return '暂无未读文章'
@@ -33,7 +35,7 @@ function emptyText(filter: FilterType, keyword: string, noSource: boolean, withS
     case 'favorited':
       return '还没有收藏文章'
     default:
-      return withSourceProbe && noSource ? '还没有订阅内容' : '暂无文章'
+      return '暂无文章'
   }
 }
 
@@ -67,7 +69,7 @@ export default function ArticleListView({
     Taro.navigateTo({ url: `/pages/article-detail/index?id=${item.id}` })
   }
 
-  const showDiscoverEntry = withSourceProbe && noSource && !keyword && filter === 'all'
+  const showDiscoverEntry = withSourceProbe && noSource && !keyword
 
   return (
     <View
@@ -110,7 +112,8 @@ export default function ArticleListView({
         ) : list.length === 0 ? (
           <EmptyState
             text={emptyText(filter, keyword, noSource, withSourceProbe)}
-            actionText={showDiscoverEntry ? '推荐订阅源' : undefined}
+            subText={showDiscoverEntry ? '订阅后，文章更新会出现在这里' : undefined}
+            actionText={showDiscoverEntry ? '去订阅' : undefined}
             onAction={() => Taro.navigateTo({ url: '/pages/discover/index' })}
           />
         ) : (

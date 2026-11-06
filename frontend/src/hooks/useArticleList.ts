@@ -9,9 +9,6 @@ import { syncNavContextIds } from '@/utils/navContext'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// 后端定时抓取间隔固定 1 小时，前端静默刷新节奏与此保持一致
-const SILENT_REFRESH_MS = 60 * 60 * 1000
-
 interface Options {
   /** 限定单个订阅源（订阅文章页），不传为全部订阅 */
   sourceId?: number
@@ -36,9 +33,6 @@ export function useArticleList(options: Options = {}) {
   // 固定分页大小（与 max_items 无关——max_items 是后端每源抓取截断数）
   const PAGE_SIZE = 50
 
-  // 静默刷新间隔（ref 存，避免触发重渲染）
-  const silentDelayRef = useRef(SILENT_REFRESH_MS)
-
   // 回调里读取最新值的 refs
   const listRef = useRef<ArticleListItem[]>([])
   const pageRef = useRef(1)
@@ -49,7 +43,6 @@ export function useArticleList(options: Options = {}) {
   const reqSeqRef = useRef(0)
   const firstShowRef = useRef(true)
   const mountedRef = useRef(true)
-  const silentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 分页页码只走 ref（不触发渲染）
@@ -90,9 +83,9 @@ export function useArticleList(options: Options = {}) {
         })
         if (seq !== reqSeqRef.current) return true
         applyList(res.list, 1, res.hasMore, res.total)
-        const isEmptyAll =
-          res.list.length === 0 && paramsRef.current.filter === 'all' && !paramsRef.current.keyword
-        if (isEmptyAll) {
+        // 非搜索态下列表为空，探测是否"完全没有订阅源"（文章 Tab 引导订阅，与筛选无关）
+        const isEmptyWithoutKeyword = res.list.length === 0 && !paramsRef.current.keyword
+        if (isEmptyWithoutKeyword) {
           probeSourceEmpty(seq)
         } else {
           setNoSource(false)
@@ -180,7 +173,6 @@ export function useArticleList(options: Options = {}) {
     return () => {
       mountedRef.current = false
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
-      if (silentTimerRef.current) clearTimeout(silentTimerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -240,24 +232,21 @@ export function useArticleList(options: Options = {}) {
     }
   })
 
-  // 切回 Tab / 返回页面：后台触发刷新，固定间隔后静默替换"第一页且非搜索态"
+  // 切回 Tab / 返回页面：立即静默重拉第一页，保证订阅增删后列表即时更新
+  // 搜索态不打断用户浏览；翻页深处与加载更多中不重置
   useDidShow(() => {
     if (firstShowRef.current) {
       firstShowRef.current = false
       return
     }
-    const delay = silentDelayRef.current
-    refreshStart().catch((err) => console.error('[ArticleList] 静默刷新触发失败', err))
-    silentTimerRef.current = setTimeout(() => {
-      if (
-        mountedRef.current &&
-        pageRef.current === 1 &&
-        !paramsRef.current.keyword &&
-        !loadingMoreRef.current
-      ) {
-        replaceLoad(false)
-      }
-    }, delay)
+    if (
+      mountedRef.current &&
+      pageRef.current === 1 &&
+      !paramsRef.current.keyword &&
+      !loadingMoreRef.current
+    ) {
+      replaceLoad(false)
+    }
   })
 
   useReachBottom(() => {

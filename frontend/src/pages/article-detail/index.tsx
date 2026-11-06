@@ -102,6 +102,9 @@ const ICON_BODY: Record<ActionIconName, (color: string, filled?: boolean) => str
     `<path d="M16 8l11 12-11 12" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
 }
 
+// 翻页节流间隔（ms）：连点只响应第一次，避免同一时间发出多个详情/列表请求
+const NAV_THROTTLE_MS = 500
+
 function actionIcon(name: ActionIconName, color: string, filled = false): string {
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">` +
@@ -133,6 +136,9 @@ export default function ArticleDetailPage() {
   const [loadingMoreNav, setLoadingMoreNav] = useState(false)
   const [statusBarHeight, setStatusBarHeight] = useState(20)
   const reqSeqRef = useRef(0)
+  // 翻页节流：上次翻页时间戳；续拉锁用 ref 保证同一 tick 内连点也只发一次请求
+  const navThrottleAtRef = useRef(0)
+  const loadingMoreRef = useRef(false)
 
   // 取状态栏高度，用于自定义导航栏的顶部留白
   useReady(() => {
@@ -181,7 +187,8 @@ export default function ArticleDetailPage() {
   // 详情页末尾自动拉下一页：当无下一篇且列表仍有 hasMore 时
   const loadNextPageForNav = useCallback(async () => {
     const navCtx = getNavContext()
-    if (!navCtx.hasMore || loadingMoreNav) return
+    if (!navCtx.hasMore || loadingMoreRef.current) return
+    loadingMoreRef.current = true
     setLoadingMoreNav(true)
     const targetPage = navCtx.loadedPage + 1
     try {
@@ -202,9 +209,10 @@ export default function ArticleDetailPage() {
     } catch (err) {
       console.error('[ArticleDetail] 续拉下一页失败', err)
     } finally {
+      loadingMoreRef.current = false
       setLoadingMoreNav(false)
     }
-  }, [loadingMoreNav])
+  }, [])
 
   const neighbors = getNavNeighbors(currentId)
   useEffect(() => {
@@ -219,12 +227,21 @@ export default function ArticleDetailPage() {
 
   const scrollTop = () => Taro.pageScrollTo({ scrollTop: 0, duration: 0 })
 
+  /** 翻页节流：距上次翻页不足 NAV_THROTTLE_MS 的连点直接丢弃 */
+  const isThrottled = () => {
+    const now = Date.now()
+    if (now - navThrottleAtRef.current < NAV_THROTTLE_MS) return true
+    navThrottleAtRef.current = now
+    return false
+  }
+
   const onPrev = () => {
-    if (!neighbors.prevId) return
+    if (!neighbors.prevId || isThrottled()) return
     setCurrentId(neighbors.prevId)
     scrollTop()
   }
   const onNext = () => {
+    if (isThrottled()) return
     if (!neighbors.nextId) {
       loadNextPageForNav()
       return

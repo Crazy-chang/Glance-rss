@@ -120,7 +120,11 @@ function CategoryBlock({ category, subscribing, onSubscribe }: CategoryBlockProp
       >
         <Text className={styles.catName}>{category.name}</Text>
         <Text className={styles.catCount}>{category.sources.length}</Text>
-        <Text className={styles.catArrow}>{expanded ? '▾' : '▸'}</Text>
+        <View
+          className={classnames(styles.catArrow, expanded && styles.catArrowExpanded)}
+        >
+          <Text className={styles.catArrowIcon}>{'›'}</Text>
+        </View>
       </View>
       {expanded && (
         <View className={styles.catList}>
