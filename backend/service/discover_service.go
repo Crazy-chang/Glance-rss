@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"net/url"
+	"sort"
 	"strings"
 
 	"gorm.io/gorm"
@@ -45,10 +46,39 @@ type DiscoverResult struct {
 
 // List 返回热门订阅与分类推荐，并标记当前用户已订阅的源
 func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
+	// 分类顺序与分类内源顺序均以 seed 行序为准；数据库 id 仅作兜底
 	var all []model.RecommendSource
-	if err := d.db.Order("category ASC, hot_rank ASC, id ASC").Find(&all).Error; err != nil {
+	if err := d.db.Order("id ASC").Find(&all).Error; err != nil {
 		return nil, err
 	}
+	catRank := make(map[string]int, 8)
+	for i, name := range model.RecommendCategoryOrder() {
+		catRank[name] = i
+	}
+	unknownRank := len(catRank)
+	rankOf := func(category string) int {
+		if r, ok := catRank[category]; ok {
+			return r
+		}
+		return unknownRank
+	}
+	seedIndex := model.RecommendSeedIndex()
+	unknownSeed := len(seedIndex)
+	seedOf := func(feedURL string) int {
+		if i, ok := seedIndex[feedURL]; ok {
+			return i
+		}
+		return unknownSeed
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if ri, rj := rankOf(all[i].Category), rankOf(all[j].Category); ri != rj {
+			return ri < rj
+		}
+		if si, sj := seedOf(all[i].FeedURL), seedOf(all[j].FeedURL); si != sj {
+			return si < sj
+		}
+		return all[i].ID < all[j].ID
+	})
 
 	subscribed, err := d.userFeedSet(userID)
 	if err != nil {
