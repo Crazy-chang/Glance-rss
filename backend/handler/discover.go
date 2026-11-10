@@ -29,3 +29,16 @@ func (h *Handler) subscribeRecommend(c *gin.Context) {
 	}
 	service.OK(c, dto)
 }
+
+// POST /api/discover/unsubscribe/:id
+func (h *Handler) unsubscribeRecommend(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.discover.Unsubscribe(uid(c), id); err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"ok": true})
+}

@@ -161,6 +161,16 @@ export function useArticleList(options: Options = {}) {
     [applyKeyword]
   )
 
+  // 键盘"搜索"键：跳过防抖立即搜索（防抖到时后 applyKeyword 内部会判重，不会二次请求）
+  const onSearchConfirm = useCallback(
+    (value: string) => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      setSearchInput(value)
+      applyKeyword(value.trim())
+    },
+    [applyKeyword]
+  )
+
   const clearSearch = useCallback(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     setSearchInput('')
@@ -282,6 +292,7 @@ export function useArticleList(options: Options = {}) {
     noSource,
     changeFilter,
     onSearchInput,
+    onSearchConfirm,
     clearSearch,
     buildNavContext
   }

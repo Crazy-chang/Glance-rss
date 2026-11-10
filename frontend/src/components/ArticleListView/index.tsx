@@ -57,6 +57,7 @@ export default function ArticleListView({
     total,
     changeFilter,
     onSearchInput,
+    onSearchConfirm,
     clearSearch,
     buildNavContext
   } = useArticleList({ sourceId, withSourceProbe })
@@ -93,6 +94,7 @@ export default function ArticleListView({
               placeholderClass={styles.searchPlaceholder}
               confirmType="search"
               onInput={(e) => onSearchInput(e.detail.value)}
+              onConfirm={(e) => onSearchConfirm(e.detail.value)}
             />
             {!!searchInput && (
               <View className={styles.clearBtn} onClick={clearSearch}>

@@ -2,15 +2,15 @@ import { Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import classnames from 'classnames'
 import { useCallback, useEffect, useState } from 'react'
-import { getDiscoverList, subscribeRecommend } from '@/api/discover'
+import { getDiscoverList, subscribeRecommend, unsubscribeRecommend } from '@/api/discover'
 import type { DiscoverResult, DiscoverSource } from '@/api/types'
 import EmptyState from '@/components/EmptyState'
 import Spinner from '@/components/Spinner'
 import styles from './index.module.scss'
 
-// 把指定推荐源在结果中标记为已订阅
-function markSubscribed(result: DiscoverResult, id: number): DiscoverResult {
-  const patch = (s: DiscoverSource): DiscoverSource => (s.id === id ? { ...s, subscribed: true } : s)
+// 把指定推荐源在结果中标记为已订阅/未订阅
+function patchSubscribed(result: DiscoverResult, id: number, subscribed: boolean): DiscoverResult {
+  const patch = (s: DiscoverSource): DiscoverSource => (s.id === id ? { ...s, subscribed } : s)
   return {
     hot: result.hot.map(patch),
     categories: result.categories.map((c) => ({ ...c, sources: c.sources.map(patch) }))
@@ -41,8 +41,35 @@ export default function DiscoverPage() {
     setSubscribing((prev) => ({ ...prev, [item.id]: true }))
     try {
       await subscribeRecommend(item.id)
-      setResult((prev) => (prev ? markSubscribed(prev, item.id) : prev))
+      setResult((prev) => (prev ? patchSubscribed(prev, item.id, true) : prev))
       Taro.showToast({ title: '订阅成功', icon: 'success' })
+    } catch {
+      // request 层已 toast
+    } finally {
+      setSubscribing((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+    }
+  }
+
+  // 已订阅再次点击：二次确认后取消订阅（后端会级联删除该源文章）
+  const onUnsubscribe = async (item: DiscoverSource) => {
+    if (subscribing[item.id]) return
+    const { confirm } = await Taro.showModal({
+      title: '删除订阅',
+      content: `确定取消订阅「${item.title}」吗？该源及其文章将被删除。`,
+      confirmText: '删除订阅',
+      cancelText: '再想想',
+      confirmColor: '#FA5151'
+    })
+    if (!confirm) return
+    setSubscribing((prev) => ({ ...prev, [item.id]: true }))
+    try {
+      await unsubscribeRecommend(item.id)
+      setResult((prev) => (prev ? patchSubscribed(prev, item.id, false) : prev))
+      Taro.showToast({ title: '已取消订阅', icon: 'success' })
     } catch {
       // request 层已 toast
     } finally {
@@ -72,6 +99,7 @@ export default function DiscoverPage() {
               category={cat}
               subscribing={subscribing}
               onSubscribe={onSubscribe}
+              onUnsubscribe={onUnsubscribe}
             />
           ))}
         </View>
@@ -84,11 +112,22 @@ interface SubscribeBtnProps {
   item: DiscoverSource
   loading: boolean
   onSubscribe: (item: DiscoverSource) => void
+  onUnsubscribe: (item: DiscoverSource) => void
 }
 
-function SubscribeButton({ item, loading, onSubscribe }: SubscribeBtnProps) {
+function SubscribeButton({ item, loading, onSubscribe, onUnsubscribe }: SubscribeBtnProps) {
   if (item.subscribed) {
-    return <Text className={styles.subBtnDone}>已订阅</Text>
+    return (
+      <Text
+        className={classnames(styles.subBtnDone, loading && styles.subBtnLoading)}
+        onClick={(e) => {
+          e.stopPropagation()
+          onUnsubscribe(item)
+        }}
+      >
+        {loading ? '处理中' : '已订阅'}
+      </Text>
+    )
   }
   return (
     <Text
@@ -107,9 +146,10 @@ interface CategoryBlockProps {
   category: { name: string; sources: DiscoverSource[] }
   subscribing: Record<number, boolean>
   onSubscribe: (item: DiscoverSource) => void
+  onUnsubscribe: (item: DiscoverSource) => void
 }
 
-function CategoryBlock({ category, subscribing, onSubscribe }: CategoryBlockProps) {
+function CategoryBlock({ category, subscribing, onSubscribe, onUnsubscribe }: CategoryBlockProps) {
   const [expanded, setExpanded] = useState(false)
   return (
     <View className={styles.catBlock}>
@@ -140,6 +180,7 @@ function CategoryBlock({ category, subscribing, onSubscribe }: CategoryBlockProp
                 item={item}
                 loading={!!subscribing[item.id]}
                 onSubscribe={onSubscribe}
+                onUnsubscribe={onUnsubscribe}
               />
             </View>
           ))}

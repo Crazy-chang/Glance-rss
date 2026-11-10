@@ -140,6 +140,36 @@ func (d *DiscoverService) Subscribe(userID, recommendID int64) (*SourceDTO, erro
 	return d.sources.CreateFromFeed(userID, rec.FeedURL, rec.Title, rec.SiteURL, rec.Description, rec.Category)
 }
 
+// Unsubscribe 取消订阅推荐源：按 feed_url 匹配当前用户的订阅源后删除（级联删除文章）
+func (d *DiscoverService) Unsubscribe(userID, recommendID int64) error {
+	var rec model.RecommendSource
+	if err := d.db.First(&rec, recommendID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrSourceMissing
+		}
+		return err
+	}
+	var sources []model.Source
+	if err := d.db.Where("user_id = ?", userID).Find(&sources).Error; err != nil {
+		return err
+	}
+	for _, s := range sources {
+		if s.FeedURL == rec.FeedURL || normalizeFeedURL(s.FeedURL) == normalizeFeedURL(rec.FeedURL) {
+			return d.sources.Delete(userID, s.ID)
+		}
+	}
+	return ErrSourceMissing
+}
+
+// normalizeFeedURL 规整 feed 地址（小写 host + 去尾部斜杠路径），与 userFeedSet 的匹配口径一致
+func normalizeFeedURL(f string) string {
+	u, err := url.Parse(f)
+	if err != nil {
+		return f
+	}
+	return strings.ToLower(u.Host) + strings.TrimRight(u.Path, "/")
+}
+
 // userFeedSet 取当前用户已订阅的 feed_url 集合（规整 host 后比较，兼容尾部斜杠差异）
 func (d *DiscoverService) userFeedSet(userID int64) (map[string]bool, error) {
 	var feeds []string

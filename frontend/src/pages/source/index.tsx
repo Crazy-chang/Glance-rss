@@ -1,5 +1,5 @@
 import { Button, Image, Input, Text, View } from '@tarojs/components'
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import classnames from 'classnames'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BASE_URL } from '@/api/config'
@@ -13,6 +13,9 @@ import { useHeaderMetrics } from '@/hooks/useHeaderMetrics'
 import styles from './index.module.scss'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// feed 地址规整：忽略大小写与尾部斜杠差异（与后端匹配口径一致）
+const normalizeFeed = (url: string) => url.trim().toLowerCase().replace(/\/+$/, '')
 
 // 给后端图片接口 URL 追加 token（<Image> 无法携带 Authorization 头）
 function authImageUrl(url: string): string {
@@ -39,13 +42,15 @@ export default function SourcePage() {
   const [renameState, setRenameState] = useState<{ id: number; value: string; submitting: boolean } | null>(null)
   const shareItemRef = useRef<SourceItem | null>(null)
 
-  // 分享当前操作的订阅源：分享到该源的文章列表页
+  // 分享当前操作的订阅源：带 feed_url 供接收方匹配/一键订阅（id 仅分享者本人账号有效）
   Taro.useShareAppMessage(() => {
     const item = shareItemRef.current
     return {
-      title: item ? `推荐订阅：${item.title}` : 'Glance',
+      title: item ? `推荐订阅：${item.title}` : 'RSS订阅阅读器',
       path: item
-        ? `/pages/source-article/index?id=${item.id}&name=${encodeURIComponent(item.title)}`
+        ? `/pages/source/index?share=1&name=${encodeURIComponent(
+            item.title
+          )}&feed_url=${encodeURIComponent(item.feed_url)}`
         : '/pages/index/index'
     }
   })
@@ -64,21 +69,95 @@ export default function SourcePage() {
     }
   }, [anyModalOpen])
 
+  // 新源首抓由后端异步执行：last_fetch_at 仍为 0 说明还在抓取中。
+  // 轮询到抓取结束（成功或失败）再刷新，避免列表文章数一直显示 0。
+  // 请求失败立即终止；重新进入页面会开启新一轮并让旧轮询退出，避免请求叠加。
+  const pollSeq = useRef(0)
+  const pollPendingSources = useCallback(async (items: SourceItem[]) => {
+    if (!items.some((s) => s.last_fetch_at === 0)) return
+    const seq = ++pollSeq.current
+    for (let i = 0; i < 6; i++) {
+      await sleep(1000)
+      if (pollSeq.current !== seq) return
+      try {
+        const latest = await getSourceList()
+        if (pollSeq.current !== seq) return
+        setList(latest.list)
+        if (!latest.list.some((s) => s.last_fetch_at === 0)) return
+      } catch (err) {
+        console.error('[Source] 首抓轮询失败', err)
+        return
+      }
+    }
+  }, [])
+
   const load = useCallback(async () => {
     try {
       const res = await getSourceList()
       setList(res.list)
+      void pollPendingSources(res.list)
     } catch (err) {
       console.error('[Source] 加载失败', err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pollPendingSources])
 
   // 每次进入（含从推荐订阅页返回）都静默刷新列表
   useDidShow(() => {
     load()
   })
+
+  // 分享落地（share=1&feed_url=xxx）：已订阅则停留当前页；
+  // 未订阅则在本页弹窗引导添加，成功后刷新列表
+  const router = useRouter()
+  const shareHandledRef = useRef(false)
+  useEffect(() => {
+    if (shareHandledRef.current) return
+    const { share, feed_url, name } = router.params
+    if (share !== '1' || !feed_url) return
+    shareHandledRef.current = true
+    const feed = decodeURIComponent(feed_url)
+    const shareName = name ? decodeURIComponent(name) : ''
+    void handleShareLanding(feed, shareName)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleShareLanding = async (feed: string, shareName: string) => {
+    try {
+      const { list: sources } = await getSourceList()
+      const target = normalizeFeed(feed)
+      if (sources.some((s) => normalizeFeed(s.feed_url) === target)) return
+    } catch {
+      // 列表查询失败也继续引导，添加接口会兜底报错
+    }
+    const { confirm } = await Taro.showModal({
+      title: '推荐订阅',
+      content: `好友向你推荐了订阅源《${shareName}》，添加后可在订阅页持续查看更新。`,
+      confirmText: '添加订阅',
+      cancelText: '暂不'
+    })
+    if (confirm) void addSharedFeed(feed)
+  }
+
+  const addSharedFeed = async (feed: string) => {
+    Taro.showLoading({ title: '订阅中...', mask: true }).catch(() => {})
+    try {
+      await addSource(feed)
+      Taro.hideLoading()
+      Taro.showToast({ title: '订阅成功', icon: 'success' })
+      void load()
+    } catch (err: any) {
+      Taro.hideLoading()
+      const { confirm } = await Taro.showModal({
+        title: '订阅失败',
+        content: err?.message || '请稍后重试',
+        confirmText: '重试',
+        cancelText: '取消'
+      })
+      if (confirm) void addSharedFeed(feed)
+    }
+  }
 
   usePullDownRefresh(async () => {
     const startedAt = Date.now()
@@ -136,9 +215,9 @@ export default function SourcePage() {
   const onDelete = async (item: SourceItem) => {
     const { confirm } = await Taro.showModal({
       title: '删除订阅',
-      content: `确定删除「${item.title}」吗？该操作将删除其下所有文章，不可恢复。`,
-      confirmText: '删除',
-      cancelText: '取消',
+      content: `确定取消订阅「${item.title}」吗？该源及其文章将被删除。`,
+      confirmText: '删除订阅',
+      cancelText: '再想想',
       confirmColor: '#FA5151'
     })
     if (!confirm) return

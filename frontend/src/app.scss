@@ -13,11 +13,12 @@ page {
   --text: #1a1a1a;
   --text-2: #8c8c8c;
   --divider: rgba(0, 0, 0, 0.06);
+  --divider-strong: rgba(0, 0, 0, 0.1);
 
   /* tab 页默认字号（适中紧凑，1:1 对照 Taro 设计稿值） */
   --fs-title: 36px;
   --fs-body: 30px;
-  --fs-meta: 22px;
+  --fs-meta: 26px;
   /* 仅正文随字号档位变化 */
   --fs-read: 30px;
 
@@ -36,6 +37,7 @@ page {
   --text: #1a1a1a;
   --text-2: #999999;
   --divider: rgba(0, 0, 0, 0.06);
+  --divider-strong: rgba(0, 0, 0, 0.15);
 }
 
 .theme-black {
@@ -45,6 +47,7 @@ page {
   --text: #eaeaea;
   --text-2: #888888;
   --divider: rgba(255, 255, 255, 0.08);
+  --divider-strong: rgba(255, 255, 255, 0.2);
 }
 
 .theme-yellow {
@@ -54,6 +57,7 @@ page {
   --text: #3e3427;
   --text-2: #8c7b5e;
   --divider: rgba(62, 52, 39, 0.08);
+  --divider-strong: rgba(62, 52, 39, 0.2);
 }
 
 .theme-green {
@@ -63,6 +67,7 @@ page {
   --text: #2b3a2e;
   --text-2: #6b7f70;
   --divider: rgba(43, 58, 46, 0.08);
+  --divider-strong: rgba(43, 58, 46, 0.2);
 }
 
 /* ---- 阅读字号三档：仅详情页根节点挂类时生效，只影响标题与正文 ---- */

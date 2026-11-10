@@ -19,24 +19,27 @@
   padding: $card-gap $page-padding;
 }
 
-/* ---- 分类区块：标题行 + 独立卡片列表 ---- */
+/* ---- 分类区块：一整张卡片，标题与订阅源在内部用分割线隔开 ---- */
 .catBlock {
   margin-bottom: $card-gap;
+  background: var(--card);
+  border-radius: $radius-card;
 }
 
 .catHeader {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 4px 16px;
+  padding: 24px 28px;
 }
 
-/* 展开时标题吸顶：贴在 ScrollView 顶部，背景遮挡下方滚动内容 */
+/* 展开时标题吸顶：贴在 ScrollView 顶部，卡片底色遮挡下方滚动内容 */
 .catHeaderSticky {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg);
+  background: var(--card);
+  border-radius: $radius-card $radius-card 0 0;
 }
 
 .catHeaderHover {
@@ -50,6 +53,18 @@
   font-size: 34px;
   font-weight: 600;
   @include text-ellipsis;
+
+  /* 左侧品牌色竖条：分类标题的视觉锚点 */
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 30px;
+    border-radius: 999px;
+    background: var(--accent);
+    margin-right: 14px;
+    vertical-align: -3px;
+  }
 }
 
 .catCount {
@@ -61,9 +76,11 @@
   min-width: 40px;
   padding: 0 14px;
   box-sizing: border-box;
-  background: var(--field);
-  color: var(--text-2);
-  font-size: 24px;
+  /* 品牌色胶囊：与左侧竖条呼应，让数量更醒目 */
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 600;
   line-height: 1;
   border-radius: $radius-chip;
   text-align: center;
@@ -94,7 +111,6 @@
 .catList {
   display: flex;
   flex-direction: column;
-  gap: $card-gap;
 }
 
 .catItem {
@@ -104,8 +120,12 @@
   padding: 24px 28px;
   box-sizing: border-box;
   width: 100%;
-  background: var(--card);
-  border-radius: $radius-card;
+  border-top: 1px solid var(--divider);
+
+  /* 大卡片内最后一项补底部圆角 */
+  &:last-child {
+    border-radius: 0 0 $radius-card $radius-card;
+  }
 }
 
 .catItemMain {

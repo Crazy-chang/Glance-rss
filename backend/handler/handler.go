@@ -76,6 +76,7 @@ func (h *Handler) Register(api *gin.RouterGroup) {
 		// 发现
 		authed.GET("/discover/list", h.discoverList)
 		authed.POST("/discover/subscribe/:id", h.subscribeRecommend)
+		authed.POST("/discover/unsubscribe/:id", h.unsubscribeRecommend)
 
 		// 设置
 		authed.GET("/setting/info", h.settingInfo)

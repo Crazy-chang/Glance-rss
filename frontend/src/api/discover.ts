@@ -10,3 +10,8 @@ export function getDiscoverList() {
 export function subscribeRecommend(id: number) {
   return request<SourceItem>(`/discover/subscribe/${id}`, { method: 'POST' })
 }
+
+// 取消订阅推荐源（按 feed 匹配当前用户订阅源后删除）
+export function unsubscribeRecommend(id: number) {
+  return request<{ ok: boolean }>(`/discover/unsubscribe/${id}`, { method: 'POST' })
+}
