@@ -11,6 +11,7 @@ import {
   unfavorite
 } from '@/api/article'
 import { getToken } from '@/api/request'
+import { addSource } from '@/api/source'
 import type { ArticleDetail as ArticleDetailType, UserSetting } from '@/api/types'
 import { useSetting } from '@/store/setting'
 import {
@@ -132,6 +133,9 @@ export default function ArticleDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [faving, setFaving] = useState(false)
+  // 分享链路订阅引导：本地订阅成功后置位，让 meta 胶囊与文末卡片同步变"已订阅"
+  const [subscribing, setSubscribing] = useState(false)
+  const [justSubscribed, setJustSubscribed] = useState(false)
   const [navVersion, setNavVersion] = useState(0)
   const [loadingMoreNav, setLoadingMoreNav] = useState(false)
   const [statusBarHeight, setStatusBarHeight] = useState(20)
@@ -299,6 +303,23 @@ export default function ArticleDetailPage() {
   const hasNext = !!neighbors.nextId || navCtx.hasMore
   const contentHtml = rewriteContentImages(detail?.content || detail?.summary || '')
 
+  // 分享链路订阅引导：只有接口明确返回未订阅（subscribed === false）才显示，
+  // 字段缺失（旧响应/加载中）一律不显示，避免首屏闪现后消失
+  const showSubscribeGuide = detail?.subscribed === false
+  const onSubscribeSource = async () => {
+    if (!detail || subscribing || justSubscribed || !detail.source_feed_url) return
+    setSubscribing(true)
+    try {
+      await addSource({ feed_url: detail.source_feed_url, title: detail.source_name || '' })
+      setJustSubscribed(true)
+      Taro.showToast({ title: '已加入订阅列表', icon: 'success' })
+    } catch (err) {
+      Taro.showToast({ title: err instanceof Error ? err.message : '订阅失败', icon: 'none' })
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
   return (
     <View
       className={`${styles.page} theme-${theme} fs-${fontSize} lh-${lineHeight} align-${textAlign}`}
@@ -340,6 +361,16 @@ export default function ArticleDetailPage() {
                 <Text className={styles.author}>
                   {[detail.author, detail.source_name].filter(Boolean).join(' · ')}
                 </Text>
+                {showSubscribeGuide && (
+                  <Text
+                    className={classnames(styles.metaSub, {
+                      [styles.metaSubDone]: justSubscribed
+                    })}
+                    onClick={onSubscribeSource}
+                  >
+                    {justSubscribed ? '✓ 已订阅' : subscribing ? '订阅中…' : '+ 订阅'}
+                  </Text>
+                )}
                 <Text className={styles.published}>
                   {formatRelative(detail.published_at)}
                 </Text>
@@ -352,6 +383,25 @@ export default function ArticleDetailPage() {
                 <Text className={styles.empty}>暂无正文</Text>
               )}
             </View>
+            {/* 文末订阅引导卡片：分享打开且未订阅时出现 */}
+            {showSubscribeGuide && (
+              <View className={styles.subCard}>
+                <View className={styles.subInfo}>
+                  <Text className={styles.subLabel}>
+                    {justSubscribed ? '已加入你的订阅列表' : '本文来自订阅源'}
+                  </Text>
+                  <Text className={styles.subName}>{detail.source_name}</Text>
+                </View>
+                <View
+                  className={classnames(styles.subBtn, {
+                    [styles.subBtnDone]: justSubscribed
+                  })}
+                  onClick={onSubscribeSource}
+                >
+                  {justSubscribed ? '✓ 已订阅' : subscribing ? '订阅中…' : '订阅该源'}
+                </View>
+              </View>
+            )}
           </>
         ) : null}
       </View>

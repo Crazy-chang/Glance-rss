@@ -33,6 +33,10 @@ export interface ArticleDetail extends ArticleListItem {
   content: string
   /** 分享签名，拼进分享链接供验签放行 */
   share_sig: string
+  /** 文章所属源的 feed 地址（分享链路引导订阅用） */
+  source_feed_url: string
+  /** 当前用户是否已订阅同源 feed */
+  subscribed: boolean
 }
 
 export interface UserSetting {

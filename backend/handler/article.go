@@ -45,7 +45,7 @@ func (h *Handler) articleDetail(c *gin.Context) {
 	var detail *service.ArticleDetail
 	var err error
 	if c.Query("share") == "1" {
-		detail, err = h.article.SharedDetail(id, c.Query("sig"))
+		detail, err = h.article.SharedDetail(uid(c), id, c.Query("sig"))
 	} else {
 		detail, err = h.article.Detail(uid(c), id)
 	}

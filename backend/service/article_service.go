@@ -61,6 +61,10 @@ type ArticleDetail struct {
 	Content string `json:"content"`
 	// ShareSig 分享签名：前端拼进分享链接，验签通过方可免订阅阅读
 	ShareSig string `json:"share_sig"`
+	// SourceFeedURL 文章所属源的 feed 地址，用于分享接收方订阅引导
+	SourceFeedURL string `json:"source_feed_url"`
+	// Subscribed 当前用户是否已订阅同源 feed（分享链路引导订阅按钮的依据）
+	Subscribed bool `json:"subscribed"`
 }
 
 // ArticleListParams 列表查询参数
@@ -78,6 +82,7 @@ type articleRow struct {
 	ID          int64
 	SourceID    int64
 	SourceName  string
+	FeedURL     string
 	Title       string
 	Summary     string
 	Author      string
@@ -133,7 +138,7 @@ func (s *ArticleService) Detail(userID, articleID int64) (*ArticleDetail, error)
 	var r articleRow
 	err := s.baseScopedQuery(userID).
 		Select(`
-			a.id, a.source_id, src.title AS source_name, a.title, a.summary,
+			a.id, a.source_id, src.title AS source_name, src.feed_url, a.title, a.summary,
 			a.author, a.link, a.published_at, a.content,
 			COALESCE(st.is_read, 0) AS is_read,
 			COALESCE(st.is_favorited, 0) AS is_favorited`).
@@ -151,6 +156,8 @@ func (s *ArticleService) Detail(userID, articleID int64) (*ArticleDetail, error)
 		ArticleListItem: item,
 		Content:         RewriteImageProxy(r.Content, s.baseURL+"/api/img-proxy?url="),
 		ShareSig:        s.signArticle(articleID),
+		SourceFeedURL:   r.FeedURL,
+		Subscribed:      true, // 走订阅隔离链路能查到，必然已订阅
 	}, nil
 }
 
@@ -164,14 +171,15 @@ func (s *ArticleService) signArticle(articleID int64) string {
 
 // SharedDetail 分享链路详情：验签通过后跳过用户订阅隔离，按文章 id 全局查。
 // 对方没有该文章的状态记录，已读/收藏固定返回 false。
-func (s *ArticleService) SharedDetail(articleID int64, sig string) (*ArticleDetail, error) {
+// subscribed 按接收方（userID）自己的订阅列表做 feed_url 归一化匹配，用于引导订阅。
+func (s *ArticleService) SharedDetail(userID, articleID int64, sig string) (*ArticleDetail, error) {
 	if !hmac.Equal([]byte(sig), []byte(s.signArticle(articleID))) {
 		return nil, ErrArticleMissing
 	}
 	var r articleRow
 	err := s.db.Table("articles a").
 		Select(`
-			a.id, a.source_id, src.title AS source_name, a.title, a.summary,
+			a.id, a.source_id, src.title AS source_name, src.feed_url, a.title, a.summary,
 			a.author, a.link, a.published_at, a.content,
 			0 AS is_read, 0 AS is_favorited`).
 		Joins("JOIN sources src ON src.id = a.source_id").
@@ -188,7 +196,22 @@ func (s *ArticleService) SharedDetail(articleID int64, sig string) (*ArticleDeta
 		ArticleListItem: item,
 		Content:         RewriteImageProxy(r.Content, s.baseURL+"/api/img-proxy?url="),
 		ShareSig:        s.signArticle(articleID),
+		SourceFeedURL:   r.FeedURL,
+		Subscribed:      s.userSubscribedFeed(userID, r.FeedURL),
 	}, nil
+}
+
+// userSubscribedFeed 判断用户是否已订阅某个 feed（大小写/尾斜杠归一化后匹配）
+func (s *ArticleService) userSubscribedFeed(userID int64, feedURL string) bool {
+	var urls []string
+	s.db.Table("user_sources").Where("user_id = ?", userID).Pluck("feed_url", &urls)
+	target := normalizeFeedURL(feedURL)
+	for _, u := range urls {
+		if u == feedURL || normalizeFeedURL(u) == target {
+			return true
+		}
+	}
+	return false
 }
 
 // SetRead 标记已读/未读
