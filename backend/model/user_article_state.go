@@ -10,6 +10,7 @@ type UserArticleState struct {
 	IsRead      bool       `gorm:"not null;default:0;index:idx_state_user_read,priority:2" json:"is_read"`
 	ReadAt      *time.Time `json:"read_at"`
 	IsFavorited bool       `gorm:"not null;default:0;index:idx_state_user_fav,priority:2" json:"is_favorited"`
+	FavoritedAt *time.Time `gorm:"index:idx_state_fav_at" json:"favorited_at"` // 收藏时间，取消收藏时置空
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }

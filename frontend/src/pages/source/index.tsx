@@ -459,8 +459,8 @@ function SourceRow({ item, deleting, onMore, onClick }: SourceRowProps) {
           <View className={styles.chevron} />
         </View>
         <Text className={styles.sub}>
-          {item.unread_count > 0 ? `${item.unread_count} 未读 · ` : ''}
-          {item.article_count} 篇{item.category ? ` · ${item.category}` : ''}
+          {`${item.unread_count} 未读 · ${item.article_count} 篇`}
+          {item.category ? ` · ${item.category}` : ''}
         </Text>
       </View>
       {/* 三个竖点：打开操作菜单 */}

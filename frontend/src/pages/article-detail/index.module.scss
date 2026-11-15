@@ -143,13 +143,19 @@
 
 .published {
   flex: none;
-  /* 顶替原 author 的占位，把时间推到行尾 */
-  margin-left: auto;
   color: var(--text-2);
   font-size: var(--fs-meta);
 }
 
-/* 分享引导：meta 行订阅胶囊（未订阅时出现，订阅后变浅蓝态） */
+/* 来源与时间之间的分隔点：收窄左右间距，让两者贴近 */
+.dot {
+  flex: none;
+  margin: 0 -10px;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+/* 分享引导：meta 行订阅胶囊（仅未订阅时出现） */
 .metaSub {
   flex: none;
   font-size: 22px;
@@ -164,12 +170,7 @@
   }
 }
 
-.metaSubDone {
-  border-color: transparent;
-  background: var(--accent-soft);
-}
-
-/* 分享引导：文末订阅卡片 */
+/* 分享引导：文末订阅卡片（与顶部胶囊同显同隐） */
 .subCard {
   display: flex;
   align-items: center;
@@ -212,11 +213,6 @@
   }
 }
 
-.subBtnDone {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
 .content {
   padding: 24px 0 32px;
   color: var(--text);
@@ -225,6 +221,14 @@
   text-align: var(--read-align, left);
   word-break: break-word;
   overflow-x: hidden;
+}
+
+/* 正文图片：从 rich-text 中摘出单独渲染，支持点击放大预览 */
+.contentImg {
+  display: block;
+  width: 100%;
+  margin: 24px 0;
+  border-radius: 8px;
 }
 
 .empty {

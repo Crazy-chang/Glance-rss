@@ -14,6 +14,10 @@ import (
 // MaxImageSize 代理图片大小上限 5MB
 const MaxImageSize = 5 * 1024 * 1024
 
+// browserUA 伪装成手机浏览器 UA：部分 CDN（知乎/微博/小红书等）会拒绝非浏览器 UA 的抓取
+const browserUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) " +
+	"AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
 // ProxyService 正文图片代理。
 // 域名不做白名单（RSS 图片普遍托管在第三方 CDN），但保留 SSRF 防护：
 // 仅 http(s)、解析 DNS 后拦截内网/回环/链路本地地址、仅放行图片类型。
@@ -49,13 +53,7 @@ func (p *ProxyService) Fetch(ctx context.Context, rawURL string) (*ImageResult, 
 			return nil, err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("User-Agent", "GlanceRSS/1.0 ImageProxy")
-
-		resp, err := p.client.Do(req)
+		resp, err := p.fetchWithHotlinkFallback(ctx, target)
 		if err != nil {
 			return nil, err
 		}
@@ -108,6 +106,37 @@ func (p *ProxyService) Fetch(ctx context.Context, rawURL string) (*ImageResult, 
 		return &ImageResult{ContentType: ct, Body: body}, nil
 	}
 	return nil, fmt.Errorf("重定向次数过多")
+}
+
+// fetchWithHotlinkFallback 防盗链兜底：
+// 先以浏览器 UA、不带 Referer 请求（多数站点允许空 Referer）；
+// 若被拒绝（401/403/404），再带「图片域名 Referer」重试一次，
+// 以满足「只允许本站引用」的策略。
+func (p *ProxyService) fetchWithHotlinkFallback(ctx context.Context, target *url.URL) (*http.Response, error) {
+	resp, err := p.doGet(ctx, target, "")
+	if err != nil {
+		return nil, err
+	}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+		resp.Body.Close()
+		return p.doGet(ctx, target, target.Scheme+"://"+target.Host+"/")
+	}
+	return resp, nil
+}
+
+func (p *ProxyService) doGet(ctx context.Context, target *url.URL, referer string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", browserUA)
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
+	return p.client.Do(req)
 }
 
 // validatePublicURL 校验协议为公网 http(s)，并解析 DNS 确认目标不是内网地址

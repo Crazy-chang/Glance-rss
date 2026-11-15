@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View } from '@tarojs/components'
-import { usePageScroll } from '@tarojs/taro'
+import { usePageScroll, useShareAppMessage } from '@tarojs/taro'
 import ArticleListView from '@/components/ArticleListView'
 import { useHeaderMetrics } from '@/hooks/useHeaderMetrics'
 
@@ -9,6 +9,12 @@ import { useHeaderMetrics } from '@/hooks/useHeaderMetrics'
 export default function ArticlePage() {
   const { statusBarHeight, capsuleWidth } = useHeaderMetrics()
   const [collapsed, setCollapsed] = useState(false)
+
+  // 整页分享：文案与订阅页保持一致
+  useShareAppMessage(() => ({
+    title: 'RSS订阅阅读器',
+    path: '/pages/index/index'
+  }))
 
   usePageScroll(({ scrollTop }) => {
     setCollapsed((prev) => (prev ? scrollTop > 40 : scrollTop > 80))

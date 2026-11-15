@@ -34,6 +34,11 @@ func main() {
 		slog.Error("建表失败", "err", err)
 		os.Exit(1)
 	}
+	// 历史收藏没有收藏时间，启动时补齐一次（幂等）
+	if err := model.BackfillFavoritedAt(db); err != nil {
+		slog.Error("回填收藏时间失败", "err", err)
+		os.Exit(1)
+	}
 	if err := model.SeedRecommendSources(db); err != nil {
 		slog.Error("推荐源种子写入失败", "err", err)
 		os.Exit(1)

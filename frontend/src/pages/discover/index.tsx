@@ -22,6 +22,12 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<Record<number, boolean>>({})
 
+  // 整页分享：文案与其他页面保持一致
+  Taro.useShareAppMessage(() => ({
+    title: 'RSS订阅阅读器',
+    path: '/pages/discover/index'
+  }))
+
   const load = useCallback(async () => {
     try {
       setResult(await getDiscoverList())

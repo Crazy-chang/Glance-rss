@@ -55,6 +55,14 @@ func AutoMigrate(db *gorm.DB) error {
 	)
 }
 
+// BackfillFavoritedAt 为历史收藏补齐收藏时间（旧数据没有该字段，用 updated_at 近似）
+// 仅处理 is_favorited=1 且 favorited_at 为空的行，可重复执行
+func BackfillFavoritedAt(db *gorm.DB) error {
+	return db.Model(&UserArticleState{}).
+		Where("is_favorited = 1 AND favorited_at IS NULL").
+		Update("favorited_at", gorm.Expr("updated_at")).Error
+}
+
 // SeedRecommendSources 把 defaultRecommendSources 中缺失的推荐源 Upsert 到数据库
 // 按 FeedURL 去重：已存在则保留数据库中的版本（不覆盖 Category/Title 等字段），不存在则新增
 func SeedRecommendSources(db *gorm.DB) error {

@@ -107,6 +107,16 @@ func (s *ArticleService) List(p ArticleListParams) (PageResult, error) {
 
 	q := s.buildListQuery(p.UserID, p.Filter, p.Search, p.SourceID)
 
+	// 已读列表按标记已读的时间倒序，收藏列表按收藏时间倒序，其余筛选按发布时间倒序；
+	// 排序统一在 List 内决定，保证「全部订阅」与「单个订阅源」两条链路一致
+	order := "a.published_at DESC, a.id DESC"
+	switch p.Filter {
+	case FilterRead:
+		order = "st.read_at DESC, a.id DESC"
+	case FilterFavorited:
+		order = "st.favorited_at DESC, a.id DESC"
+	}
+
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return PageResult{}, err
@@ -118,7 +128,7 @@ func (s *ArticleService) List(p ArticleListParams) (PageResult, error) {
 			a.author, a.link, a.published_at, a.content,
 			COALESCE(st.is_read, 0) AS is_read,
 			COALESCE(st.is_favorited, 0) AS is_favorited`).
-		Order("a.published_at DESC, a.id DESC").
+		Order(order).
 		Offset((p.Page - 1) * p.Size).
 		Limit(p.Size).
 		Scan(&rows).Error
@@ -204,7 +214,11 @@ func (s *ArticleService) SharedDetail(userID, articleID int64, sig string) (*Art
 // userSubscribedFeed 判断用户是否已订阅某个 feed（大小写/尾斜杠归一化后匹配）
 func (s *ArticleService) userSubscribedFeed(userID int64, feedURL string) bool {
 	var urls []string
-	s.db.Table("user_sources").Where("user_id = ?", userID).Pluck("feed_url", &urls)
+	if err := s.db.Model(&model.Source{}).
+		Where("user_id = ?", userID).
+		Pluck("feed_url", &urls).Error; err != nil {
+		return false
+	}
 	target := normalizeFeedURL(feedURL)
 	for _, u := range urls {
 		if u == feedURL || normalizeFeedURL(u) == target {
@@ -237,6 +251,12 @@ func (s *ArticleService) SetFavorite(userID, articleID int64, favorited bool) er
 	}
 	return s.upsertState(userID, articleID, func(st *model.UserArticleState) {
 		st.IsFavorited = favorited
+		if favorited {
+			now := time.Now()
+			st.FavoritedAt = &now
+		} else {
+			st.FavoritedAt = nil
+		}
 	})
 }
 

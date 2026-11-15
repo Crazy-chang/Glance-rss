@@ -1,4 +1,4 @@
-import { Button, RichText, Text, View } from '@tarojs/components'
+import { Button, Image, RichText, Text, View } from '@tarojs/components'
 import Taro, { useShareAppMessage, useReady, useRouter } from '@tarojs/taro'
 import classnames from 'classnames'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -77,7 +77,80 @@ function rewriteContentImages(content: string): string {
   )
 }
 
-// ========== 底部操作栏图标（内联 SVG data URI） ==========
+type ContentSegment =
+  | { type: 'html'; html: string }
+  | { type: 'image'; src: string }
+
+// 正文里空标签：不参与嵌套栈
+const VOID_TAGS = new Set(['img', 'br', 'hr', 'input', 'meta', 'link', 'source'])
+
+// 片段是否有可见内容：纯空白或只有空标签的片段丢弃，避免渲染出多余空段落
+function hasVisibleContent(fragment: string): boolean {
+  if (!fragment) return false
+  if (/<(br|hr)\b/i.test(fragment)) return true
+  return fragment.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim() !== ''
+}
+
+// 兼容带引号/不带引号、大小写混合的 src
+function extractImgSrc(tag: string): string {
+  const quoted = tag.match(/\bsrc\s*=\s*["']([^"']*)["']/i)
+  if (quoted) return quoted[1].trim()
+  const bare = tag.match(/\bsrc\s*=\s*([^\s"'>]+)/i)
+  return bare ? bare[1].trim() : ''
+}
+
+/**
+ * 把正文按 img 切成有序片段，图片片段交给 <Image> 渲染以便点击放大。
+ * rich-text 内部节点收不到点击事件，只有把 img 摘出来才能绑定 preview。
+ * 切分时用标签栈补全/重开外层标签，避免 <p>文字<img>文字</p> 切出残缺 HTML。
+ */
+function splitContentImages(html: string): { segments: ContentSegment[]; images: string[] } {
+  const segments: ContentSegment[] = []
+  const images: string[] = []
+  if (!html) return { segments, images }
+
+  const stack: { name: string; open: string }[] = []
+  let chunkStart = 0
+  let reopen = '' // 图片之后需要重开的外层标签
+  const tagRe = /<\/?([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g
+  let m: RegExpExecArray | null
+
+  while ((m = tagRe.exec(html))) {
+    const raw = m[0]
+    const name = m[1].toLowerCase()
+    if (raw.startsWith('</')) {
+      const idx = stack.map((t) => t.name).lastIndexOf(name)
+      if (idx >= 0) stack.length = idx
+      continue
+    }
+    if (name !== 'img') {
+      if (m[2] !== '/' && !VOID_TAGS.has(name)) stack.push({ name, open: raw })
+      continue
+    }
+
+    // 图片前：补齐到这里的文字，并闭合未结束的外层标签
+    const before = html.slice(chunkStart, m.index)
+    if (hasVisibleContent(before)) {
+      const closing = stack
+        .map((t) => `</${t.name}>`)
+        .reverse()
+        .join('')
+      segments.push({ type: 'html', html: reopen + before + closing })
+    }
+    const src = extractImgSrc(raw)
+    if (src) {
+      images.push(src)
+      segments.push({ type: 'image', src })
+    }
+    chunkStart = tagRe.lastIndex
+    reopen = stack.map((t) => t.open).join('')
+  }
+
+  const rest = html.slice(chunkStart)
+  if (hasVisibleContent(rest)) segments.push({ type: 'html', html: reopen + rest })
+  return { segments, images }
+}
+
 // 小程序 WXML 不支持 svg 标签，WXSS background-image 对 SVG data URI 兼容最好；
 // 颜色随主题在 JS 侧按 hex 传入，避免 currentColor 在背景图中失效。
 type ActionIconName = 'settings' | 'bookmark' | 'share' | 'prev' | 'next'
@@ -133,9 +206,8 @@ export default function ArticleDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [faving, setFaving] = useState(false)
-  // 分享链路订阅引导：本地订阅成功后置位，让 meta 胶囊与文末卡片同步变"已订阅"
+  // 分享链路订阅引导：仅未订阅时展示，订阅成功后直接隐藏入口
   const [subscribing, setSubscribing] = useState(false)
-  const [justSubscribed, setJustSubscribed] = useState(false)
   const [navVersion, setNavVersion] = useState(0)
   const [loadingMoreNav, setLoadingMoreNav] = useState(false)
   const [statusBarHeight, setStatusBarHeight] = useState(20)
@@ -302,16 +374,24 @@ export default function ArticleDetailPage() {
   const hasPrev = !!neighbors.prevId
   const hasNext = !!neighbors.nextId || navCtx.hasMore
   const contentHtml = rewriteContentImages(detail?.content || detail?.summary || '')
+  const { segments: contentSegments, images: contentImages } = splitContentImages(contentHtml)
+
+  // 点击正文图片：用原生预览器放大，左右滑可切换文中其他图片
+  const previewContentImage = (src: string) => {
+    if (!contentImages.length) return
+    Taro.previewImage({ urls: contentImages, current: src }).catch(() => {})
+  }
 
   // 分享链路订阅引导：只有接口明确返回未订阅（subscribed === false）才显示，
   // 字段缺失（旧响应/加载中）一律不显示，避免首屏闪现后消失
   const showSubscribeGuide = detail?.subscribed === false
   const onSubscribeSource = async () => {
-    if (!detail || subscribing || justSubscribed || !detail.source_feed_url) return
+    if (!detail || subscribing || !detail.source_feed_url) return
     setSubscribing(true)
     try {
-      await addSource({ feed_url: detail.source_feed_url, title: detail.source_name || '' })
-      setJustSubscribed(true)
+      // addSource 签名：(feedUrl: string)，后端只需要 feed_url，title 后端自己抓
+      await addSource(detail.source_feed_url)
+      setDetail((prev) => (prev ? { ...prev, subscribed: true } : prev))
       Taro.showToast({ title: '已加入订阅列表', icon: 'success' })
     } catch (err) {
       Taro.showToast({ title: err instanceof Error ? err.message : '订阅失败', icon: 'none' })
@@ -361,44 +441,46 @@ export default function ArticleDetailPage() {
                 <Text className={styles.author}>
                   {[detail.author, detail.source_name].filter(Boolean).join(' · ')}
                 </Text>
-                {showSubscribeGuide && (
-                  <Text
-                    className={classnames(styles.metaSub, {
-                      [styles.metaSubDone]: justSubscribed
-                    })}
-                    onClick={onSubscribeSource}
-                  >
-                    {justSubscribed ? '✓ 已订阅' : subscribing ? '订阅中…' : '+ 订阅'}
-                  </Text>
-                )}
+                <Text className={styles.dot}>·</Text>
                 <Text className={styles.published}>
                   {formatRelative(detail.published_at)}
                 </Text>
+                {showSubscribeGuide && (
+                  <Text className={styles.metaSub} onClick={onSubscribeSource}>
+                    {subscribing ? '订阅中…' : '+ 订阅'}
+                  </Text>
+                )}
               </View>
             </View>
             <View className={styles.content}>
-              {contentHtml ? (
-                <RichText nodes={contentHtml} />
-              ) : (
+              {contentSegments.length === 0 ? (
                 <Text className={styles.empty}>暂无正文</Text>
+              ) : (
+                contentSegments.map((seg, index) =>
+                  seg.type === 'image' ? (
+                    <Image
+                      key={`img-${index}`}
+                      className={styles.contentImg}
+                      src={seg.src}
+                      mode="widthFix"
+                      lazyLoad
+                      onClick={() => previewContentImage(seg.src)}
+                    />
+                  ) : (
+                    <RichText key={`html-${index}`} nodes={seg.html} />
+                  )
+                )
               )}
             </View>
-            {/* 文末订阅引导卡片：分享打开且未订阅时出现 */}
+            {/* 文末订阅引导卡片：与顶部订阅入口同显同隐 */}
             {showSubscribeGuide && (
               <View className={styles.subCard}>
                 <View className={styles.subInfo}>
-                  <Text className={styles.subLabel}>
-                    {justSubscribed ? '已加入你的订阅列表' : '本文来自订阅源'}
-                  </Text>
+                  <Text className={styles.subLabel}>本文来自订阅源</Text>
                   <Text className={styles.subName}>{detail.source_name}</Text>
                 </View>
-                <View
-                  className={classnames(styles.subBtn, {
-                    [styles.subBtnDone]: justSubscribed
-                  })}
-                  onClick={onSubscribeSource}
-                >
-                  {justSubscribed ? '✓ 已订阅' : subscribing ? '订阅中…' : '订阅该源'}
+                <View className={styles.subBtn} onClick={onSubscribeSource}>
+                  {subscribing ? '订阅中…' : '订阅该源'}
                 </View>
               </View>
             )}
