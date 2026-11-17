@@ -161,13 +161,24 @@ func (d *DiscoverService) Unsubscribe(userID, recommendID int64) error {
 	return ErrSourceMissing
 }
 
-// normalizeFeedURL 规整 feed 地址（小写 host + 去尾部斜杠路径），与 userFeedSet 的匹配口径一致
+// normalizeFeedURL 规整 feed 地址，用于判断两个地址是否指向同一个订阅源：
+// 忽略协议（http/https）、host 大小写、www. 前缀、路径尾部斜杠，保留路径与查询参数。
+// 保留查询参数是因为 RSSHub 等服务的不同源靠 ?type=xx 区分。
 func normalizeFeedURL(f string) string {
+	f = strings.TrimSpace(f)
 	u, err := url.Parse(f)
-	if err != nil {
-		return f
+	if err != nil || u.Host == "" {
+		return strings.ToLower(f)
 	}
-	return strings.ToLower(u.Host) + strings.TrimRight(u.Path, "/")
+	host := strings.TrimPrefix(strings.ToLower(u.Host), "www.")
+	path := strings.TrimRight(u.Path, "/")
+	if path == "" {
+		path = "/"
+	}
+	if u.RawQuery != "" {
+		return host + path + "?" + u.RawQuery
+	}
+	return host + path
 }
 
 // userFeedSet 取当前用户已订阅的 feed_url 集合（规整 host 后比较，兼容尾部斜杠差异）

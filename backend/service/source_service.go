@@ -101,14 +101,12 @@ func (s *SourceService) Add(ctx context.Context, userID int64, feedURL string) (
 		return nil, ErrFeedInvalid
 	}
 
-	// 同一用户同一 feed 不可重复订阅
-	var dup int64
-	if err := s.db.Model(&model.Source{}).
-		Where("user_id = ? AND feed_url = ?", userID, feedURL).
-		Count(&dup).Error; err != nil {
+	// 同一用户同一 feed 不可重复订阅（归一化后比较）
+	dup, err := s.feedExists(userID, feedURL)
+	if err != nil {
 		return nil, err
 	}
-	if dup > 0 {
+	if dup {
 		return nil, ErrFeedDuplicate
 	}
 
@@ -122,16 +120,32 @@ func (s *SourceService) Add(ctx context.Context, userID int64, feedURL string) (
 		firstNonEmpty(meta.Title, feedURL), meta.Link, meta.Description, "")
 }
 
+// feedExists 判断用户是否已订阅同一 feed。
+// 用 normalizeFeedURL 归一化后比较，兼容 http/https、www 前缀、host 大小写、路径尾部斜杠等写法差异。
+func (s *SourceService) feedExists(userID int64, feedURL string) (bool, error) {
+	var feeds []string
+	if err := s.db.Model(&model.Source{}).
+		Where("user_id = ?", userID).
+		Pluck("feed_url", &feeds).Error; err != nil {
+		return false, err
+	}
+	target := normalizeFeedURL(feedURL)
+	for _, f := range feeds {
+		if normalizeFeedURL(f) == target {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // CreateFromFeed 用已校验的信息创建订阅源并异步首次抓取（手动添加与推荐订阅共用）
 func (s *SourceService) CreateFromFeed(userID int64, feedURL, title, siteURL, description, category string) (*SourceDTO, error) {
-	// 同一用户同一 feed 不可重复订阅
-	var dup int64
-	if err := s.db.Model(&model.Source{}).
-		Where("user_id = ? AND feed_url = ?", userID, feedURL).
-		Count(&dup).Error; err != nil {
+	// 同一用户同一 feed 不可重复订阅（归一化后比较）
+	dup, err := s.feedExists(userID, feedURL)
+	if err != nil {
 		return nil, err
 	}
-	if dup > 0 {
+	if dup {
 		return nil, ErrFeedDuplicate
 	}
 

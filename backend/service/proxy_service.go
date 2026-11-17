@@ -43,8 +43,9 @@ type ImageResult struct {
 	Body        []byte
 }
 
-// Fetch 校验并拉取图片，最多跟随 3 次合法重定向
-func (p *ProxyService) Fetch(ctx context.Context, rawURL string) (*ImageResult, error) {
+// Fetch 校验并拉取图片，最多跟随 3 次合法重定向。
+// optReferer：可选，源站防盗链需要特定 Referer 时使用（允许前端传入文章来源页面 URL）。
+func (p *ProxyService) Fetch(ctx context.Context, rawURL string, optReferer string) (*ImageResult, error) {
 	current := strings.TrimSpace(rawURL)
 	const maxRedirects = 3
 	for hop := 0; hop <= maxRedirects; hop++ {
@@ -53,7 +54,7 @@ func (p *ProxyService) Fetch(ctx context.Context, rawURL string) (*ImageResult, 
 			return nil, err
 		}
 
-		resp, err := p.fetchWithHotlinkFallback(ctx, target)
+		resp, err := p.fetchWithHotlinkFallback(ctx, target, optReferer)
 		if err != nil {
 			return nil, err
 		}
@@ -108,21 +109,37 @@ func (p *ProxyService) Fetch(ctx context.Context, rawURL string) (*ImageResult, 
 	return nil, fmt.Errorf("重定向次数过多")
 }
 
-// fetchWithHotlinkFallback 防盗链兜底：
-// 先以浏览器 UA、不带 Referer 请求（多数站点允许空 Referer）；
-// 若被拒绝（401/403/404），再带「图片域名 Referer」重试一次，
-// 以满足「只允许本站引用」的策略。
-func (p *ProxyService) fetchWithHotlinkFallback(ctx context.Context, target *url.URL) (*http.Response, error) {
-	resp, err := p.doGet(ctx, target, "")
-	if err != nil {
-		return nil, err
+// fetchWithHotlinkFallback 防盗链链式兜底：
+// 依次尝试三种 Referer 策略，任一成功即返回：
+//  1) 调用方传入的 optReferer（如文章来源页面 URL，多数 OSS 防盗链允许本站页面引用）
+//  2) 空 Referer（多数公开 CDN 允许）
+//  3) 图片自身域名 Referer（少数只允许 bucket 自引用的 CDN）
+func (p *ProxyService) fetchWithHotlinkFallback(ctx context.Context, target *url.URL, optReferer string) (*http.Response, error) {
+	candidates := []string{}
+	if optReferer != "" {
+		candidates = append(candidates, optReferer)
 	}
-	switch resp.StatusCode {
-	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+	candidates = append(candidates, "", target.Scheme+"://"+target.Host+"/")
+
+	var lastResp *http.Response
+	var lastErr error
+	for _, ref := range candidates {
+		resp, err := p.doGet(ctx, target, ref)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode == http.StatusOK {
+			return resp, nil
+		}
+		// 非 200（常见 401/403/404）：关闭 body 后继续下一层兜底
 		resp.Body.Close()
-		return p.doGet(ctx, target, target.Scheme+"://"+target.Host+"/")
+		lastResp = resp
 	}
-	return resp, nil
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("源站返回状态码 %d", lastResp.StatusCode)
 }
 
 func (p *ProxyService) doGet(ctx context.Context, target *url.URL, referer string) (*http.Response, error) {

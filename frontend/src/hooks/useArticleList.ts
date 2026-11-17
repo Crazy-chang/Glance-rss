@@ -137,6 +137,7 @@ export function useArticleList(options: Options = {}) {
       if (next === paramsRef.current.filter) return
       paramsRef.current.filter = next
       setFilter(next)
+      Taro.pageScrollTo({ scrollTop: 0, duration: 0 })
       replaceLoad(true)
     },
     [replaceLoad]
@@ -147,6 +148,7 @@ export function useArticleList(options: Options = {}) {
       if (kw === paramsRef.current.keyword) return
       paramsRef.current.keyword = kw
       setKeyword(kw)
+      Taro.pageScrollTo({ scrollTop: 0, duration: 0 })
       replaceLoad(true)
     },
     [replaceLoad]

@@ -34,13 +34,14 @@ import Spinner from '@/components/Spinner'
 import styles from './index.module.scss'
 
 /**
- * 把正文中的 img-proxy URL 补全为带 token 的绝对地址，并给所有 img 标签加
- * max-width:100%;height:auto;display:block; 防止超宽图片横向溢出，
+ * 把正文中的 img-proxy URL 补全为带 token（鉴权）和 referer（防盗链）的绝对地址，
+ * 并给所有 img 标签加 max-width:100%;height:auto;display:block; 防止超宽图片横向溢出，
  * 同时加 loading="lazy" decoding="async" 让未滚到的图片延迟加载、异步解码。
  * <Image> 标签无法携带 Authorization 头，必须走 query 鉴权；
  * rich-text 内部节点不受外层 WXSS 作用域影响，必须用 inline style 控制图片宽度。
+ * @param articleLink 文章原始来源页面 URL（如新华网文章页），用作防盗链 Referer
  */
-function rewriteContentImages(content: string): string {
+function rewriteContentImages(content: string, articleLink?: string): string {
   if (!content) return ''
   let html = content
 
@@ -64,15 +65,22 @@ function rewriteContentImages(content: string): string {
     return `<img${newAttrs}${slash}>`
   })
 
-  // 2) 给 img-proxy URL 补 token（<Image> 无法带 Authorization 头）
+  // 2) 给 img-proxy URL 补 token + referer
   const token = getToken()
   if (!token) return html
   return html.replace(
     /(src=["'])([^"']*\/api\/img-proxy\?url=[^"']*)(["'])/gi,
-    (match, prefix: string, url: string, suffix: string) => {
-      if (url.includes('token=')) return match
+    (_match, prefix: string, url: string, suffix: string) => {
+      const hasToken = /[?&]token=/.test(url)
+      const hasReferer = /[?&]referer=/.test(url)
+      if (hasToken && hasReferer) return _match
       const absolute = url.startsWith('http') ? url : `${BASE_URL}${url}`
-      return `${prefix}${absolute}&token=${encodeURIComponent(token)}${suffix}`
+      const sep = absolute.includes('?') ? '&' : '?'
+      let final = absolute
+      if (!hasToken) final += `${sep}token=${encodeURIComponent(token)}`
+      const finalSep = final.includes('?') ? '&' : '?'
+      if (!hasReferer && articleLink) final += `${finalSep}referer=${encodeURIComponent(articleLink)}`
+      return `${prefix}${final}${suffix}`
     }
   )
 }
@@ -311,11 +319,6 @@ export default function ArticleDetailPage() {
     return false
   }
 
-  const onPrev = () => {
-    if (!neighbors.prevId || isThrottled()) return
-    setCurrentId(neighbors.prevId)
-    scrollTop()
-  }
   const onNext = () => {
     if (isThrottled()) return
     if (!neighbors.nextId) {
@@ -371,15 +374,14 @@ export default function ArticleDetailPage() {
   })
 
   const navCtx = getNavContext()
-  const hasPrev = !!neighbors.prevId
   const hasNext = !!neighbors.nextId || navCtx.hasMore
-  const contentHtml = rewriteContentImages(detail?.content || detail?.summary || '')
-  const { segments: contentSegments, images: contentImages } = splitContentImages(contentHtml)
+  const contentHtml = rewriteContentImages(detail?.content || detail?.summary || '', detail?.link)
+  const { segments: contentSegments } = splitContentImages(contentHtml)
 
-  // 点击正文图片：用原生预览器放大，左右滑可切换文中其他图片
+  // 点击正文图片：用原生预览器放大，仅预览当前点击的单张图片
   const previewContentImage = (src: string) => {
-    if (!contentImages.length) return
-    Taro.previewImage({ urls: contentImages, current: src }).catch(() => {})
+    if (!src) return
+    Taro.previewImage({ urls: [src], current: src }).catch(() => {})
   }
 
   // 分享链路订阅引导：只有接口明确返回未订阅（subscribed === false）才显示，
@@ -438,10 +440,12 @@ export default function ArticleDetailPage() {
             <View className={styles.header}>
               <Text className={styles.title}>{detail.title}</Text>
               <View className={styles.metaRow}>
-                <Text className={styles.author}>
-                  {[detail.author, detail.source_name].filter(Boolean).join(' · ')}
-                </Text>
-                <Text className={styles.dot}>·</Text>
+                {detail.source_name && (
+                  <>
+                    <Text className={styles.author}>{detail.source_name}</Text>
+                    <Text className={styles.dot}>·</Text>
+                  </>
+                )}
                 <Text className={styles.published}>
                   {formatRelative(detail.published_at)}
                 </Text>
@@ -532,16 +536,6 @@ export default function ArticleDetailPage() {
             />
             <Text className={styles.actionLabel}>分享</Text>
           </Button>
-          <View
-            className={classnames(styles.actionBtn, { [styles.actionDisabled]: !hasPrev })}
-            onClick={onPrev}
-          >
-            <View
-              className={styles.actionIcon}
-              style={{ backgroundImage: actionIcon('prev', iconColor) }}
-            />
-            <Text className={styles.actionLabel}>上一篇</Text>
-          </View>
           <View
             className={classnames(styles.actionBtn, {
               [styles.actionDisabled]: !hasNext || loadingMoreNav,

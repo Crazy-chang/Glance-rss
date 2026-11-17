@@ -459,7 +459,8 @@ function SourceRow({ item, deleting, onMore, onClick }: SourceRowProps) {
           <View className={styles.chevron} />
         </View>
         <Text className={styles.sub}>
-          {`${item.unread_count} 未读 · ${item.article_count} 篇`}
+          {/* {`${item.unread_count} 未读 · ${item.article_count} 篇`} */}
+          {`${item.unread_count} 篇未读`}
           {item.category ? ` · ${item.category}` : ''}
         </Text>
       </View>
@@ -506,14 +507,22 @@ function AddDialog({
     <View className={styles.mask} onClick={close} catchMove>
       <View className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <Text className={styles.dialogTitle}>添加订阅</Text>
-        <Input
-          className={styles.dialogInput}
-          value={value}
-          placeholder="输入 RSS 地址，如 https://example.com/feed"
-          placeholderClass={styles.dialogPlaceholder}
-          focus
-          onInput={(e) => onChange(e.detail.value)}
-        />
+        <View className={styles.dialogInputWrap}>
+          <Input
+            className={classnames(styles.dialogInput, !!value && styles.dialogInputWithClear)}
+            value={value}
+            placeholder="输入 RSS 地址，如 https://example.com/feed"
+            placeholderClass={styles.dialogPlaceholder}
+            focus
+            onInput={(e) => onChange(e.detail.value)}
+          />
+          {!!value && !submitting && (
+            <View className={styles.dialogClear} onClick={() => onChange('')}>
+              <View className={styles.dialogClearBarA} />
+              <View className={styles.dialogClearBarB} />
+            </View>
+          )}
+        </View>
         {/* 状态区固定高度，无论显示加载还是错误都不改变弹窗高度 */}
         <View className={styles.dialogStatus}>
           {submitting && (

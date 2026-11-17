@@ -237,6 +237,11 @@
   text-align: center;
 }
 
+.dialogInputWrap {
+  position: relative;
+  width: 100%;
+}
+
 .dialogInput {
   width: 100%;
   height: 84px;
@@ -247,6 +252,43 @@
   font-size: 28px;
   border-radius: $radius-chip;
   border: 1rpx solid var(--divider);
+}
+
+/* 有内容时给右侧清除按钮留出空间 */
+.dialogInputWithClear {
+  padding-right: 72px;
+}
+
+/* 一次性清除输入内容 */
+.dialogClear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--divider);
+}
+
+.dialogClearBarA,
+.dialogClearBarB {
+  position: absolute;
+  width: 18px;
+  height: 2px;
+  background: var(--text-2);
+  border-radius: 1px;
+}
+
+.dialogClearBarA {
+  transform: rotate(45deg);
+}
+
+.dialogClearBarB {
+  transform: rotate(-45deg);
 }
 
 .dialogPlaceholder {
