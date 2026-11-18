@@ -33,20 +33,56 @@ import { formatRelative } from '@/utils/time'
 import Spinner from '@/components/Spinner'
 import styles from './index.module.scss'
 
+// 表情图的特征：class 名、图片路径、alt 内容、显式小尺寸，命中任一即按行内表情处理
+const EMOJI_CLASS_RE = /class\s*=\s*["'][^"']*\b(emoji|smiley|emoticon|qqface|emotion)\b[^"']*["']/i
+const EMOJI_SRC_RE =
+  /(?:src|data-src)\s*=\s*["'][^"']*(?:\/emoji\/|\/emoticons?\/|\/smilies\/|twemoji|emojione|\/[0-9a-f]{4,6}\.(?:png|gif|svg))/i
+const EMOJI_ALT_RE = /alt\s*=\s*["']([^"']{1,4})["']/i
+// 拼音/颜文字以外的单字符 emoji 区段
+const EMOJI_CHAR_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u
+
+// 行内表情的边长（px），跟阅读字号三档对应
+const EMOJI_SIZES: Record<string, number> = { small: 16, medium: 18, large: 21 }
+
+/**
+ * 判断一个 img 标签是不是正文里的表情（笑脸、动物脸等），
+ * 这类图在 RSS 里通常是小尺寸、带 emoji class 或路径，不能按插图放大渲染。
+ */
+function isEmojiImage(tag: string): boolean {
+  if (EMOJI_CLASS_RE.test(tag)) return true
+  if (EMOJI_SRC_RE.test(tag)) return true
+  const alt = tag.match(EMOJI_ALT_RE)
+  if (alt && EMOJI_CHAR_RE.test(alt[1])) return true
+  // width / height 同时存在且都很小，按表情处理
+  const w = tag.match(/\bwidth\s*=\s*["']?(\d{1,3})/i)
+  const h = tag.match(/\bheight\s*=\s*["']?(\d{1,3})/i)
+  if (w && h && Number(w[1]) <= 32 && Number(h[1]) <= 32) return true
+  return false
+}
+
 /**
  * 把正文中的 img-proxy URL 补全为带 token（鉴权）和 referer（防盗链）的绝对地址，
  * 并给所有 img 标签加 max-width:100%;height:auto;display:block; 防止超宽图片横向溢出，
  * 同时加 loading="lazy" decoding="async" 让未滚到的图片延迟加载、异步解码。
  * <Image> 标签无法携带 Authorization 头，必须走 query 鉴权；
  * rich-text 内部节点不受外层 WXSS 作用域影响，必须用 inline style 控制图片宽度。
+ * 表情图改成行内小图（不占满屏、不参与点击预览）。
  * @param articleLink 文章原始来源页面 URL（如新华网文章页），用作防盗链 Referer
+ * @param emojiSize 行内表情边长（px），随阅读字号档位变化
  */
-function rewriteContentImages(content: string, articleLink?: string): string {
+function rewriteContentImages(content: string, articleLink?: string, emojiSize = 18): string {
   if (!content) return ''
   let html = content
 
-  // 1) 给所有 img 标签补 max-width + 懒加载属性
+  // 1) 表情图 → 行内小图；其余 img 补 max-width + 懒加载属性
   html = html.replace(/<img\b([^>]*?)(\s*\/?)>/gi, (_match, attrs: string, slash: string) => {
+    if (isEmojiImage(attrs)) {
+      const inline =
+        `display:inline-block;width:${emojiSize}px;height:${emojiSize}px;` +
+        'vertical-align:-3px;margin:0 2px;max-width:none;'
+      const newAttrs = attrs.replace(/\s*style\s*=\s*["'][^"']*["']/i, '')
+      return `<img${newAttrs} style="${inline}" data-glance-emoji="1"${slash}>`
+    }
     const styleMatch = attrs.match(/style\s*=\s*["']([^"']*)["']/i)
     const rule = 'max-width:100%;height:auto;display:block;'
     let newAttrs = attrs
@@ -135,6 +171,8 @@ function splitContentImages(html: string): { segments: ContentSegment[]; images:
       if (m[2] !== '/' && !VOID_TAGS.has(name)) stack.push({ name, open: raw })
       continue
     }
+    // 表情图已改成行内小图，留在 HTML 里跟随文字流，不切成独立图片
+    if (/\bdata-glance-emoji\s*=/i.test(raw)) continue
 
     // 图片前：补齐到这里的文字，并闭合未结束的外层标签
     const before = html.slice(chunkStart, m.index)
@@ -386,7 +424,11 @@ export default function ArticleDetailPage() {
 
   const navCtx = getNavContext()
   const hasNext = !!neighbors.nextId || navCtx.hasMore
-  const contentHtml = rewriteContentImages(detail?.content || detail?.summary || '', detail?.link)
+  const contentHtml = rewriteContentImages(
+    detail?.content || detail?.summary || '',
+    detail?.link,
+    EMOJI_SIZES[fontSize] || 18
+  )
   const { segments: contentSegments } = splitContentImages(contentHtml)
 
   // 点击正文图片：用原生预览器放大，仅预览当前点击的单张图片
