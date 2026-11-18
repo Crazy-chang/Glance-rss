@@ -105,8 +105,10 @@ export const api = {
   resetAll() {
     return request<{ ok: boolean }>('/system/reset', 'POST', {});
   },
-  users(page = 1, size = 20) {
-    return request<UserListResult>(`/user/list?page=${page}&size=${size}`);
+  users(page = 1, size = 20, minSources = 0) {
+    const query = new URLSearchParams({ page: String(page), size: String(size) });
+    if (minSources > 0) query.set('min_sources', String(minSources));
+    return request<UserListResult>(`/user/list?${query.toString()}`);
   },
   logs(limit = 100) {
     return request<AdminLog[]>(`/system/logs?limit=${limit}`);

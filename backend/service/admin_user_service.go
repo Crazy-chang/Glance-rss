@@ -39,8 +39,9 @@ type AdminUserListResult struct {
 	HasMore bool           `json:"hasMore"`
 }
 
-// ListAdminUsers 分页查询用户及其订阅源（只读）
-func ListAdminUsers(db *gorm.DB, page, size int) (*AdminUserListResult, error) {
+// ListAdminUsers 分页查询用户及其订阅源（只读）。
+// minSourceCount > 0 时只返回订阅源数量 >= minSourceCount 的用户。
+func ListAdminUsers(db *gorm.DB, page, size int, minSourceCount int64) (*AdminUserListResult, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -51,13 +52,21 @@ func ListAdminUsers(db *gorm.DB, page, size int) (*AdminUserListResult, error) {
 		size = 100
 	}
 
+	userQuery := db.Model(&model.User{})
+	if minSourceCount > 0 {
+		userQuery = userQuery.Where(
+			"id IN (SELECT user_id FROM sources GROUP BY user_id HAVING COUNT(*) >= ?)",
+			minSourceCount,
+		)
+	}
+
 	var total int64
-	if err := db.Model(&model.User{}).Count(&total).Error; err != nil {
+	if err := userQuery.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
 	var users []model.User
-	if err := db.Order("created_at DESC, id DESC").
+	if err := userQuery.Order("created_at DESC, id DESC").
 		Offset((page - 1) * size).
 		Limit(size).
 		Find(&users).Error; err != nil {
