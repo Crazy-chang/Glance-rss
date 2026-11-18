@@ -9,7 +9,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (getToken()) {
-    return <Navigate to="/categories" replace />;
+    return <Navigate to="/recommend/categories" replace />;
   }
 
   const handleSubmit = async (values: { username: string; password: string }) => {
@@ -18,7 +18,7 @@ export default function Login() {
       const result = await api.login(values.username, values.password);
       setToken(result.token);
       message.success('登录成功');
-      navigate('/categories', { replace: true });
+      navigate('/recommend/categories', { replace: true });
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
     } finally {

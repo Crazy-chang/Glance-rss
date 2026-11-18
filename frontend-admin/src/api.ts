@@ -1,4 +1,4 @@
-import type { AdminLog, Category, ExportData, Source, SourceInput } from './types';
+import type { AdminLog, Category, ExportData, Source, SourceInput, UserListResult } from './types';
 
 const TOKEN_KEY = 'glance_admin_token';
 
@@ -104,6 +104,9 @@ export const api = {
 
   resetAll() {
     return request<{ ok: boolean }>('/system/reset', 'POST', {});
+  },
+  users(page = 1, size = 20) {
+    return request<UserListResult>(`/user/list?page=${page}&size=${size}`);
   },
   logs(limit = 100) {
     return request<AdminLog[]>(`/system/logs?limit=${limit}`);

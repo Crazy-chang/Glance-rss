@@ -386,6 +386,37 @@ npm run build
 
 `POST /api/admin/recommend/import` 的请求体直接使用上述快照结构（不是 `{data: ...}` 包装）。导入在事务内整体替换现有分类和推荐源，成功返回 `{"ok":true}`；校验或写入失败不会留下部分导入结果。
 
+#### 用户订阅
+
+`GET /api/admin/user/list?page=1&size=20` 只读返回全部用户及其订阅源，按首次登录时间倒序。`page` 默认 1；`size` 默认 20，最大 100。
+
+响应 data：
+
+```json
+{
+  "list": [{
+    "id": 1,
+    "open_id": "oXXXX",
+    "created_at": "2026-10-12T02:54:48+08:00",
+    "updated_at": "2026-10-12T02:54:48+08:00",
+    "source_count": 8,
+    "sources": [{
+      "id": 6,
+      "title": "36氪",
+      "feed_url": "https://www.36kr.com/feed",
+      "site_url": "https://36kr.com",
+      "category": "科技资讯",
+      "last_fetch_at": "2026-11-18T07:08:08Z",
+      "last_error": "",
+      "created_at": "2026-10-12T16:12:55+08:00"
+    }]
+  }],
+  "total": 1, "page": 1, "size": 20, "hasMore": false
+}
+```
+
+后台页面位于 `/users`，展开用户行即可查看该用户的订阅源列表；该接口不提供任何写操作。
+
 #### 系统
 
 | 方法与路径 | 参数 | 说明 |

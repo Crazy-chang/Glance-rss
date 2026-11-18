@@ -1,4 +1,4 @@
-import { AppstoreOutlined, LinkOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api, clearToken } from '../api';
@@ -6,15 +6,23 @@ import { api, clearToken } from '../api';
 const { Header, Sider, Content } = Layout;
 
 const menuItems = [
-  { key: 'categories', icon: <AppstoreOutlined />, label: '分类管理' },
-  { key: 'sources', icon: <LinkOutlined />, label: '推荐源管理' },
+  {
+    key: 'recommend',
+    icon: <AppstoreOutlined />,
+    label: '推荐管理',
+    children: [
+      { key: 'recommend/categories', label: '分类管理' },
+      { key: 'recommend/sources', label: '推荐源管理' },
+    ],
+  },
+  { key: 'users', icon: <TeamOutlined />, label: '用户订阅' },
   { key: 'system', icon: <SettingOutlined />, label: '系统管理' },
 ];
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selected = location.pathname.split('/')[1] || 'categories';
+  const selected = location.pathname.replace(/^\//, '') || 'recommend/categories';
 
   const handleLogout = async () => {
     try {
@@ -33,6 +41,7 @@ export default function AdminLayout() {
         <Menu
           mode="inline"
           selectedKeys={[selected]}
+          defaultOpenKeys={['recommend']}
           items={menuItems}
           onClick={({ key }) => navigate(`/${key}`)}
         />

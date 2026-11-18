@@ -54,6 +54,9 @@ func (h *Handler) Register(g *gin.RouterGroup) {
 		authed.POST("/recommend/import", h.recommendImport)
 		authed.GET("/recommend/export", h.recommendExport)
 
+		// 用户订阅（只读）
+		authed.GET("/user/list", h.userList)
+
 		// 系统
 		authed.POST("/system/reset", h.systemReset)
 		authed.GET("/system/logs", h.systemLogs)

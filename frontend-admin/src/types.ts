@@ -54,3 +54,31 @@ export interface SourceInput {
   category_id: number;
   hot_rank: number;
 }
+
+export interface AdminUserSource {
+  id: number;
+  title: string;
+  feed_url: string;
+  site_url: string;
+  category: string;
+  last_fetch_at: string | null;
+  last_error: string;
+  created_at: string;
+}
+
+export interface AdminUser {
+  id: number;
+  open_id: string;
+  created_at: string;
+  updated_at: string;
+  source_count: number;
+  sources: AdminUserSource[];
+}
+
+export interface UserListResult {
+  list: AdminUser[];
+  total: number;
+  page: number;
+  size: number;
+  hasMore: boolean;
+}

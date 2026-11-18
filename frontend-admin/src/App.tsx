@@ -5,6 +5,7 @@ import Categories from './pages/Categories';
 import Login from './pages/Login';
 import Sources from './pages/Sources';
 import System from './pages/System';
+import Users from './pages/Users';
 import { getToken } from './api';
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -24,9 +25,13 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/categories" replace />} />
-          <Route path="categories" element={<Categories />} />
-          <Route path="sources" element={<Sources />} />
+          <Route index element={<Navigate to="/recommend/categories" replace />} />
+          <Route path="recommend">
+            <Route index element={<Navigate to="/recommend/categories" replace />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="sources" element={<Sources />} />
+          </Route>
+          <Route path="users" element={<Users />} />
           <Route path="system" element={<System />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
