@@ -1,23 +1,29 @@
 # Glance
 
-一个自建 RSS 阅读微信小程序：订阅 RSS 源、自动抓取清洗文章、多用户静默登录。
+一个自建 RSS 阅读系统：微信小程序负责订阅与阅读，Web 管理后台负责推荐分类和推荐源维护，Go 服务统一提供 API、定时抓取与静态页面托管。
 
-- **前端**：Taro 4 + React 18 + TypeScript（编译为微信小程序）
-- **后端**：Go + Gin + GORM + SQLite
-- **登录**：微信 openid 静默登录（JWT，30 天有效）
+- **小程序端**：Taro 4 + React 18 + TypeScript
+- **管理后台**：Vite 5 + React 18 + Ant Design 5
+- **后端**：Go + Gin + GORM + SQLite（纯 Go 驱动，无需 CGO）
+- **鉴权**：小程序使用微信 openid 静默登录（JWT 30 天）；管理后台使用独立管理员 JWT（12 小时）
 
 ## 目录结构
 
-```
+```text
 Glance-wx/
-├── frontend/   # 微信小程序前端（Taro）
-└── backend/    # Go 后端服务
+├── frontend/        # 微信小程序端（Taro）
+├── frontend-admin/  # 推荐分类与推荐源管理后台（Vite）
+├── backend/         # Go API、抓取调度、SQLite 与后台静态托管
+└── docs/            # 部署等专项文档
 ```
 
-前后端完全分离、独立启动；各自的目录职责、接口文档和详细启动步骤见：
+三个部分独立开发、独立构建。管理后台构建到 `backend/web/admin/`，由 Go 服务在 `/admin/` 路径下同进程托管，不需要单独的 Web 服务器或 Node 常驻进程。
 
-- [frontend/README.md](frontend/README.md)
-- [backend/README.md](backend/README.md)
+详细说明见：
+
+- [frontend/README.md](frontend/README.md)：小程序页面、组件与交互
+- [backend/README.md](backend/README.md)：后端架构、配置与完整 API
+- [docs/deploy-backend.md](docs/deploy-backend.md)：服务器构建、Nginx、SSL 与 systemd 部署
 
 ## 快速开始
 
@@ -29,11 +35,11 @@ go run .
 # 验证：curl http://localhost:8080/api/ping
 ```
 
-首次运行前在 `backend/config/config.yaml` 填入微信 AppID / Secret（本地模拟器联调可先不填真实值，登录功能需要真实凭证）。
+配置文件为 `backend/config/config.yaml`，也可用 `GLANCE_CONFIG` 指定其他路径。本地模拟器联调时，微信 AppID/Secret 保持占位值会使用固定的 `dev-openid` 开发兜底；真实微信登录需要填入有效凭证。
 
-SQLite 数据库文件自动创建在 `backend/data/glance.db`。
+SQLite 数据库默认自动创建在 `backend/data/glance.db`。启动时自动建表、迁移历史推荐数据并初始化默认管理员，无需手工执行 SQL。
 
-### 2. 启动前端
+### 2. 启动微信小程序端
 
 ```bash
 cd frontend
@@ -41,9 +47,23 @@ npm install
 npm run dev:weapp
 ```
 
-然后用微信开发者工具打开 `frontend/` 目录（编译产物在 `frontend/dist/`），详情里勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」，即可访问 `http://localhost:8080` 的后端。
+本地联调前，将 `frontend/src/api/config.ts` 的 `BASE_URL` 改为 `http://localhost:8080`；真机调试改为电脑局域网 IP（如 `http://192.168.x.x:8080`），生产环境使用 `https://glancelog.cn`。
 
-真机调试时把前端请求基址改为电脑的局域网 IP（如 `http://192.168.x.x:8080`）。
+用微信开发者工具导入 `frontend/` 目录，编译产物在 `frontend/dist/`。本地 HTTP 联调需在「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。
+
+### 3. 使用管理后台
+
+构建后台静态资源：
+
+```bash
+cd frontend-admin
+npm install
+npm run build
+```
+
+构建产物输出到 `backend/web/admin/`。后端启动后访问 `http://localhost:8080/admin/`，首次初始化的账号为 `admin`，密码为 `666666`。公网环境请勿沿用默认密码。
+
+需要单独调试后台页面时，可在 `frontend-admin/` 运行 `npm run dev`，访问 `http://localhost:5174`。Vite 的 `/api` 代理目标在 `vite.config.ts` 中配置，需与实际后端端口一致；该代理只影响开发模式，不影响生产构建和线上访问。
 
 ## 提交规范
 
