@@ -51,7 +51,10 @@ func AutoMigrate(db *gorm.DB) error {
 		&Article{},
 		&UserArticleState{},
 		&Setting{},
+		&RecommendCategory{},
 		&RecommendSource{},
+		&AdminUser{},
+		&AdminLog{},
 	)
 }
 
@@ -63,25 +66,156 @@ func BackfillFavoritedAt(db *gorm.DB) error {
 		Update("favorited_at", gorm.Expr("updated_at")).Error
 }
 
-// SeedRecommendSources 把 defaultRecommendSources 中缺失的推荐源 Upsert 到数据库
-// 按 FeedURL 去重：已存在则保留数据库中的版本（不覆盖 Category/Title 等字段），不存在则新增
-func SeedRecommendSources(db *gorm.DB) error {
-	var existing []RecommendSource
-	if err := db.Find(&existing).Error; err != nil {
+// SeedRecommendData 推荐数据初始化与旧数据迁移（幂等，启动时调用）：
+//  1. 分类表为空时写入内置分类
+//  2. 历史推荐源（仅有 category 文本、无 category_id）回填分类关联与排序
+//  3. 推荐源表为空时写入内置推荐源
+//
+// 非空表不再补写，避免后台删除的数据在重启后被 seed 复活
+func SeedRecommendData(db *gorm.DB) error {
+	if err := seedRecommendCategories(db); err != nil {
 		return err
 	}
-	existMap := make(map[string]bool, len(existing))
-	for _, s := range existing {
-		existMap[s.FeedURL] = true
+	if err := backfillRecommendCategoryIDs(db); err != nil {
+		return err
 	}
-	var toInsert []RecommendSource
-	for _, s := range defaultRecommendSources {
-		if !existMap[s.FeedURL] {
-			toInsert = append(toInsert, s)
+	return seedRecommendSources(db)
+}
+
+func seedRecommendCategories(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&RecommendCategory{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	cats := make([]RecommendCategory, 0, len(defaultRecommendCategories))
+	for i, c := range defaultRecommendCategories {
+		c.SortOrder = (i + 1) * 10
+		cats = append(cats, c)
+	}
+	return db.Create(&cats).Error
+}
+
+// backfillRecommendCategoryIDs 把旧版 category 文本迁移为分类表关联
+// 对 seed 中存在同名 feed_url 的源，以 seed 分类为准（修正历史上误归到"其他"的数据）
+func backfillRecommendCategoryIDs(db *gorm.DB) error {
+	var legacy []RecommendSource
+	if err := db.Where("category_id = 0").Find(&legacy).Error; err != nil {
+		return err
+	}
+	if len(legacy) == 0 {
+		return nil
+	}
+
+	var cats []RecommendCategory
+	if err := db.Order("sort_order ASC, id ASC").Find(&cats).Error; err != nil {
+		return err
+	}
+	byName := make(map[string]*RecommendCategory, len(cats))
+	maxCatOrder := 0
+	for i := range cats {
+		byName[cats[i].Name] = &cats[i]
+		if cats[i].SortOrder > maxCatOrder {
+			maxCatOrder = cats[i].SortOrder
 		}
+	}
+
+	seedCategory := make(map[string]string, len(defaultRecommendSources))
+	for _, s := range defaultRecommendSources {
+		seedCategory[s.FeedURL] = s.Category
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, r := range legacy {
+			name := r.Category
+			if seedName, ok := seedCategory[r.FeedURL]; ok && seedName != "" {
+				name = seedName
+			}
+			if name == "" {
+				name = "未分类"
+			}
+			cat, ok := byName[name]
+			if !ok {
+				maxCatOrder += 10
+				cat = &RecommendCategory{Name: name, SortOrder: maxCatOrder}
+				if err := tx.Create(cat).Error; err != nil {
+					return err
+				}
+				byName[name] = cat
+			}
+
+			updates := map[string]any{"category_id": cat.ID, "category": cat.Name}
+			if r.SortOrder == 0 {
+				var maxOrder int
+				if err := tx.Model(&RecommendSource{}).
+					Where("category_id = ?", cat.ID).
+					Select("COALESCE(MAX(sort_order),0)").
+					Scan(&maxOrder).Error; err != nil {
+					return err
+				}
+				updates["sort_order"] = maxOrder + 10
+			}
+			if err := tx.Model(&RecommendSource{}).
+				Where("id = ?", r.ID).
+				Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// seedRecommendSources 仅在推荐源表为空时写入内置推荐源
+func seedRecommendSources(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&RecommendSource{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	var cats []RecommendCategory
+	if err := db.Find(&cats).Error; err != nil {
+		return err
+	}
+	catID := make(map[string]int64, len(cats))
+	for _, c := range cats {
+		catID[c.Name] = c.ID
+	}
+
+	nextOrder := make(map[int64]int, len(cats))
+	toInsert := make([]RecommendSource, 0, len(defaultRecommendSources))
+	for _, s := range defaultRecommendSources {
+		id, ok := catID[s.Category]
+		if !ok {
+			continue // 分类被调整过则跳过，避免写入孤儿数据
+		}
+		nextOrder[id] += 10
+		s.CategoryID = id
+		s.SortOrder = nextOrder[id]
+		toInsert = append(toInsert, s)
 	}
 	if len(toInsert) == 0 {
 		return nil
 	}
 	return db.Create(&toInsert).Error
+}
+
+// ResetRecommendData 清空推荐分类与推荐源，恢复内置初始数据（后台"恢复初始设置"）
+func ResetRecommendData(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&RecommendSource{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("1 = 1").Delete(&RecommendCategory{}).Error; err != nil {
+			return err
+		}
+		if err := seedRecommendCategories(tx); err != nil {
+			return err
+		}
+		return seedRecommendSources(tx)
+	})
 }

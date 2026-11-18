@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"net/url"
-	"sort"
 	"strings"
 
 	"gorm.io/gorm"
@@ -45,40 +44,16 @@ type DiscoverResult struct {
 }
 
 // List 返回热门订阅与分类推荐，并标记当前用户已订阅的源
+// 分类顺序取分类表 sort_order，分类内顺序取推荐源 sort_order
 func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
-	// 分类顺序与分类内源顺序均以 seed 行序为准；数据库 id 仅作兜底
-	var all []model.RecommendSource
-	if err := d.db.Order("id ASC").Find(&all).Error; err != nil {
+	var cats []model.RecommendCategory
+	if err := d.db.Order("sort_order ASC, id ASC").Find(&cats).Error; err != nil {
 		return nil, err
 	}
-	catRank := make(map[string]int, 8)
-	for i, name := range model.RecommendCategoryOrder() {
-		catRank[name] = i
+	var all []model.RecommendSource
+	if err := d.db.Order("sort_order ASC, id ASC").Find(&all).Error; err != nil {
+		return nil, err
 	}
-	unknownRank := len(catRank)
-	rankOf := func(category string) int {
-		if r, ok := catRank[category]; ok {
-			return r
-		}
-		return unknownRank
-	}
-	seedIndex := model.RecommendSeedIndex()
-	unknownSeed := len(seedIndex)
-	seedOf := func(feedURL string) int {
-		if i, ok := seedIndex[feedURL]; ok {
-			return i
-		}
-		return unknownSeed
-	}
-	sort.SliceStable(all, func(i, j int) bool {
-		if ri, rj := rankOf(all[i].Category), rankOf(all[j].Category); ri != rj {
-			return ri < rj
-		}
-		if si, sj := seedOf(all[i].FeedURL), seedOf(all[j].FeedURL); si != sj {
-			return si < sj
-		}
-		return all[i].ID < all[j].ID
-	})
 
 	subscribed, err := d.userFeedSet(userID)
 	if err != nil {
@@ -93,7 +68,7 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 			SiteURL:     r.SiteURL,
 			Category:    r.Category,
 			Description: r.Description,
-			Subscribed:  subscribed[r.FeedURL],
+			Subscribed:  subscribed[normalizeFeedURL(r.FeedURL)],
 		}
 	}
 
@@ -111,20 +86,46 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 		result.Hot = append(result.Hot, toDTO(r))
 	}
 
-	// 分类分组（保持查询出的分类首次出现顺序）
-	catIndex := map[string]int{}
+	// 分类分组：先按分类表顺序建空组，再填充源
+	catIndex := make(map[int64]int, len(cats))
+	orphanIndex := make(map[string]int, 2)
+	for _, c := range cats {
+		catIndex[c.ID] = len(result.Categories)
+		result.Categories = append(result.Categories, DiscoverCategory{
+			Name:    c.Name,
+			Sources: []DiscoverSource{},
+		})
+	}
 	for _, r := range all {
-		idx, ok := catIndex[r.Category]
+		if idx, ok := catIndex[r.CategoryID]; ok {
+			result.Categories[idx].Sources = append(result.Categories[idx].Sources, toDTO(r))
+			continue
+		}
+		// 兜底：未关联分类的旧数据按分类名追加到末尾
+		name := strings.TrimSpace(r.Category)
+		if name == "" {
+			name = "未分类"
+		}
+		idx, ok := orphanIndex[name]
 		if !ok {
+			idx = len(result.Categories)
+			orphanIndex[name] = idx
 			result.Categories = append(result.Categories, DiscoverCategory{
-				Name:    r.Category,
+				Name:    name,
 				Sources: []DiscoverSource{},
 			})
-			idx = len(result.Categories) - 1
-			catIndex[r.Category] = idx
 		}
 		result.Categories[idx].Sources = append(result.Categories[idx].Sources, toDTO(r))
 	}
+
+	// 过滤空分类（后台可能新建了尚未添加源的分类）
+	filled := make([]DiscoverCategory, 0, len(result.Categories))
+	for _, c := range result.Categories {
+		if len(c.Sources) > 0 {
+			filled = append(filled, c)
+		}
+	}
+	result.Categories = filled
 	return result, nil
 }
 
@@ -153,8 +154,9 @@ func (d *DiscoverService) Unsubscribe(userID, recommendID int64) error {
 	if err := d.db.Where("user_id = ?", userID).Find(&sources).Error; err != nil {
 		return err
 	}
+	target := normalizeFeedURL(rec.FeedURL)
 	for _, s := range sources {
-		if s.FeedURL == rec.FeedURL || normalizeFeedURL(s.FeedURL) == normalizeFeedURL(rec.FeedURL) {
+		if normalizeFeedURL(s.FeedURL) == target {
 			return d.sources.Delete(userID, s.ID)
 		}
 	}
@@ -181,7 +183,7 @@ func normalizeFeedURL(f string) string {
 	return host + path
 }
 
-// userFeedSet 取当前用户已订阅的 feed_url 集合（规整 host 后比较，兼容尾部斜杠差异）
+// userFeedSet 取当前用户已订阅的 feed_url 集合（归一化后比较）
 func (d *DiscoverService) userFeedSet(userID int64) (map[string]bool, error) {
 	var feeds []string
 	if err := d.db.Model(&model.Source{}).
@@ -191,10 +193,7 @@ func (d *DiscoverService) userFeedSet(userID int64) (map[string]bool, error) {
 	}
 	set := make(map[string]bool, len(feeds))
 	for _, f := range feeds {
-		set[f] = true
-		if u, err := url.Parse(f); err == nil {
-			set[strings.ToLower(u.Host)+strings.TrimRight(u.Path, "/")] = true
-		}
+		set[normalizeFeedURL(f)] = true
 	}
 	return set, nil
 }

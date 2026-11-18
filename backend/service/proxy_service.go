@@ -111,9 +111,9 @@ func (p *ProxyService) Fetch(ctx context.Context, rawURL string, optReferer stri
 
 // fetchWithHotlinkFallback 防盗链链式兜底：
 // 依次尝试三种 Referer 策略，任一成功即返回：
-//  1) 调用方传入的 optReferer（如文章来源页面 URL，多数 OSS 防盗链允许本站页面引用）
-//  2) 空 Referer（多数公开 CDN 允许）
-//  3) 图片自身域名 Referer（少数只允许 bucket 自引用的 CDN）
+//  1. 调用方传入的 optReferer（如文章来源页面 URL，多数 OSS 防盗链允许本站页面引用）
+//  2. 空 Referer（多数公开 CDN 允许）
+//  3. 图片自身域名 Referer（少数只允许 bucket 自引用的 CDN）
 func (p *ProxyService) fetchWithHotlinkFallback(ctx context.Context, target *url.URL, optReferer string) (*http.Response, error) {
 	candidates := []string{}
 	if optReferer != "" {

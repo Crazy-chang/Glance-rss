@@ -1,6 +1,9 @@
 # 依赖
 node_modules/
 frontend/dist/
+frontend-admin/node_modules/
+# 后台构建产物（构建到后端静态目录，部署时执行 npm run build）
+backend/web/
 
 # Go
 backend/server

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"glance-wx/backend/config"
 	"glance-wx/backend/fetcher"
 	"glance-wx/backend/handler"
+	adminhandler "glance-wx/backend/handler/admin"
 	"glance-wx/backend/model"
 	"glance-wx/backend/scheduler"
 	"glance-wx/backend/service"
@@ -39,7 +41,7 @@ func main() {
 		slog.Error("回填收藏时间失败", "err", err)
 		os.Exit(1)
 	}
-	if err := model.SeedRecommendSources(db); err != nil {
+	if err := model.SeedRecommendData(db); err != nil {
 		slog.Error("推荐源种子写入失败", "err", err)
 		os.Exit(1)
 	}
@@ -74,8 +76,28 @@ func main() {
 		Sched:    sched,
 	})
 
+	// 后台管理：初始管理员 + 独立路由
+	adminAuthSvc := service.NewAdminAuthService(db, cfg)
+	if err := adminAuthSvc.EnsureDefaultAdmin(); err != nil {
+		slog.Error("初始化管理员失败", "err", err)
+		os.Exit(1)
+	}
+	adminHandler := adminhandler.New(adminhandler.Deps{
+		DB:        db,
+		Auth:      adminAuthSvc,
+		Recommend: service.NewAdminRecommendService(db),
+	})
+
 	r := gin.Default()
 	h.Register(r.Group("/api"))
+	adminHandler.Register(r.Group("/api/admin"))
+
+	// 后台静态页面（Vite 构建产物），前端使用 hash 路由，无需服务端回退
+	adminDir := filepath.Join("web", "admin")
+	r.GET("/admin", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/admin/")
+	})
+	r.StaticFS("/admin", http.Dir(adminDir))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Server.Port,

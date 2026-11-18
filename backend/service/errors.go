@@ -12,3 +12,17 @@ var (
 	ErrSettingValue     = errors.New("设置项取值不合法")
 	ErrSourceTitleEmpty = errors.New("订阅源名称不能为空")
 )
+
+// 后台管理错误
+var (
+	ErrAdminCredentials   = errors.New("用户名或密码错误")
+	ErrCategoryMissing    = errors.New("分类不存在")
+	ErrCategoryNameEmpty  = errors.New("分类名称不能为空")
+	ErrCategoryDuplicate  = errors.New("分类名称已存在")
+	ErrCategoryHasSources = errors.New("该分类下还有推荐源，请先删除或移动")
+	ErrRecommendMissing   = errors.New("推荐源不存在")
+	ErrRecommendTitle     = errors.New("推荐源名称不能为空")
+	ErrRecommendFeedURL   = errors.New("RSS 地址不合法")
+	ErrRecommendDuplicate = errors.New("该 RSS 地址已存在")
+	ErrImportInvalid      = errors.New("导入数据格式不正确")
+)
