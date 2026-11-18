@@ -1,7 +1,9 @@
 /**
  * 详情页"上一篇/下一篇"的本地序列上下文（不使用服务端 prev/next）。
- * 列表点击时写入当前有序 id 序列；列表项被本地移除（如未读筛选下标记已读）
- * 后同步更新 ids，使被移除文章的邻居仍然正确。
+ * 列表点击时写入当时可见顺序的 id 快照，本次详情浏览期间保持不变。
+ * 注意：不能在标记已读 / 取消收藏后从 ids 中剔除条目——剔除后当前文章
+ * 不在序列里，getNavNeighbors 会退回已经错位的 anchorIndex，
+ * 导致"下一篇"跳过文章；保留快照才能保证翻页严格跟随点击时的可见顺序。
  *
  * 同时携带列表的查询参数 / 已加载页码 / hasMore，使详情页在翻到
  * 序列末尾时能自行调用 getArticleList 拉取下一页，无需依赖列表页存活。
@@ -59,11 +61,6 @@ export function getNavContext(): NavContext {
   return ctx
 }
 
-/** 列表本地变化后同步序列（anchorIndex 与查询上下文保持不变） */
-export function syncNavContextIds(ids: number[]) {
-  ctx.ids = [...ids]
-}
-
 /** 详情页跳到上/下一篇时更新锚点位置 */
 export function setNavAnchor(articleId: number) {
   const idx = ctx.ids.indexOf(articleId)
@@ -71,8 +68,8 @@ export function setNavAnchor(articleId: number) {
 }
 
 /**
- * 当前文章的邻居。文章已不在序列中（如未读列表里被标记已读）时
- * 退回使用锚点位置，保证"下一篇"跳过自身。
+ * 当前文章的邻居。文章不在序列中（非列表入口进入，如分享卡片）时
+ * 退回使用锚点位置。
  */
 export function getNavNeighbors(currentId: number): { prevId?: number; nextId?: number } {
   const { ids, anchorIndex } = ctx

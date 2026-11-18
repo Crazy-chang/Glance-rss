@@ -5,7 +5,6 @@ import { getSourceList } from '@/api/source'
 import { refreshStart } from '@/api/common'
 import type { ArticleListItem, FilterType } from '@/api/types'
 import { onArticleState } from '@/utils/articleEvents'
-import { syncNavContextIds } from '@/utils/navContext'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -203,7 +202,8 @@ export function useArticleList(options: Options = {}) {
           const next = prev.filter((a) => a.id !== id)
           listRef.current = next
           setList(next)
-          syncNavContextIds(next.map((a) => a.id))
+          // 仅更新列表显示；详情页的翻页序列是点击时拍下的快照，不能跟着删，
+          // 否则"下一篇"会因索引错位而跳文章（见 utils/navContext 注释）
           setTotal((t) => Math.max(0, t - 1))
         } else {
           const next = prev.map((a) => (a.id === id ? { ...a, ...patch } : a))

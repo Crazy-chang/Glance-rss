@@ -268,28 +268,39 @@ export default function ArticleDetailPage() {
     loadDetail(currentId)
   }, [currentId, loadDetail])
 
-  // 详情页末尾自动拉下一页：当无下一篇且列表仍有 hasMore 时
+  // 详情页末尾自动拉下一页：当无下一篇且列表仍有 hasMore 时。
+  // 未读/收藏筛选下列表会随阅读、取消收藏而收缩，服务端 offset 分页整体前移，
+  // 直接取 page+1 会整段跳过文章；这两类筛选从第一页重新取并跳过已加载的 id。
   const loadNextPageForNav = useCallback(async () => {
     const navCtx = getNavContext()
     if (!navCtx.hasMore || loadingMoreRef.current) return
     loadingMoreRef.current = true
     setLoadingMoreNav(true)
-    const targetPage = navCtx.loadedPage + 1
+    const shrinkable = navCtx.query.filter === 'unread' || navCtx.query.filter === 'favorited'
+    const seen = new Set(navCtx.ids)
+    let page = shrinkable ? 1 : navCtx.loadedPage + 1
     try {
-      const res = await getArticleList({
-        page: targetPage,
-        size: 50,
-        filter: navCtx.query.filter,
-        search: navCtx.query.keyword,
-        source_id: navCtx.query.sourceId
-      })
-      appendNavPage(
-        res.list.map((a) => a.id),
-        targetPage,
-        res.hasMore,
-        res.total
-      )
-      setNavVersion((v) => v + 1)
+      for (;;) {
+        const res = await getArticleList({
+          page,
+          size: 50,
+          filter: navCtx.query.filter,
+          search: navCtx.query.keyword,
+          source_id: navCtx.query.sourceId
+        })
+        const hasFresh = res.list.some((a) => !seen.has(a.id))
+        if (hasFresh || !res.hasMore) {
+          appendNavPage(
+            res.list.map((a) => a.id),
+            page,
+            res.hasMore,
+            res.total
+          )
+          setNavVersion((v) => v + 1)
+          break
+        }
+        page += 1
+      }
     } catch (err) {
       console.error('[ArticleDetail] 续拉下一页失败', err)
     } finally {
