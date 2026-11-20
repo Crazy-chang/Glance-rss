@@ -75,6 +75,9 @@ export const api = {
   deleteCategory(id: number) {
     return request<{ ok: boolean }>('/category/delete', 'POST', { id });
   },
+  setCategoryEnabled(id: number, enabled: boolean) {
+    return request<{ ok: boolean }>('/category/status', 'POST', { id, enabled });
+  },
   reorderCategories(ids: number[]) {
     return request<{ ok: boolean }>('/category/reorder', 'POST', { ids });
   },
@@ -91,6 +94,9 @@ export const api = {
   },
   deleteSource(id: number) {
     return request<{ ok: boolean }>('/recommend/delete', 'POST', { id });
+  },
+  setSourceEnabled(id: number, enabled: boolean) {
+    return request<{ ok: boolean }>('/recommend/status', 'POST', { id, enabled });
   },
   reorderSources(ids: number[]) {
     return request<{ ok: boolean }>('/recommend/reorder', 'POST', { ids });

@@ -28,6 +28,7 @@ type AdminCategoryDTO struct {
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
 	SourceCount int64  `json:"source_count"`
+	Enabled     bool   `json:"enabled"`
 }
 
 type categoryCountRow struct {
@@ -60,6 +61,7 @@ func (s *AdminRecommendService) ListCategories() ([]AdminCategoryDTO, error) {
 			Description: c.Description,
 			SortOrder:   c.SortOrder,
 			SourceCount: counts[c.ID],
+			Enabled:     c.Enabled,
 		})
 	}
 	return list, nil
@@ -132,6 +134,27 @@ func (s *AdminRecommendService) UpdateCategory(actor AdminActor, id int64, name,
 		return err
 	}
 	WriteAdminLog(s.db, actor, LogCategoryUpdate, cat.Name+" → "+name)
+	return nil
+}
+
+// SetCategoryEnabled 停用/启用分类；停用后该分类及其下推荐源都不在发现页展示
+func (s *AdminRecommendService) SetCategoryEnabled(actor AdminActor, id int64, enabled bool) error {
+	var cat model.RecommendCategory
+	if err := s.db.First(&cat, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrCategoryMissing
+		}
+		return err
+	}
+	if err := s.db.Model(&model.RecommendCategory{}).Where("id = ?", id).
+		Update("enabled", enabled).Error; err != nil {
+		return err
+	}
+	verb := "停用"
+	if enabled {
+		verb = "启用"
+	}
+	WriteAdminLog(s.db, actor, LogCategoryStatus, verb+"分类："+cat.Name)
 	return nil
 }
 
@@ -293,6 +316,27 @@ func (s *AdminRecommendService) UpdateSource(actor AdminActor, id int64, in Admi
 	return nil
 }
 
+// SetSourceEnabled 停用/启用推荐源；停用后不在发现页展示
+func (s *AdminRecommendService) SetSourceEnabled(actor AdminActor, id int64, enabled bool) error {
+	var source model.RecommendSource
+	if err := s.db.First(&source, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRecommendMissing
+		}
+		return err
+	}
+	if err := s.db.Model(&model.RecommendSource{}).Where("id = ?", id).
+		Update("enabled", enabled).Error; err != nil {
+		return err
+	}
+	verb := "停用"
+	if enabled {
+		verb = "启用"
+	}
+	WriteAdminLog(s.db, actor, LogSourceStatus, verb+"推荐源："+source.Title)
+	return nil
+}
+
 // DeleteSource 删除推荐源
 func (s *AdminRecommendService) DeleteSource(actor AdminActor, id int64) error {
 	var source model.RecommendSource
@@ -358,6 +402,7 @@ func (s *AdminRecommendService) prepareSource(in AdminSourceInput) (model.Recomm
 		CategoryID:  cat.ID,
 		Category:    cat.Name,
 		HotRank:     hotRank,
+		Enabled:     true,
 	}, nil
 }
 
@@ -388,12 +433,14 @@ type RecommendExportSource struct {
 	SiteURL     string `json:"site_url"`
 	Description string `json:"description"`
 	HotRank     int    `json:"hot_rank"`
+	Enabled     *bool  `json:"enabled,omitempty"`
 }
 
 // RecommendExportCategory 导入导出用分类结构（嵌套其下推荐源）
 type RecommendExportCategory struct {
 	Name        string                  `json:"name"`
 	Description string                  `json:"description"`
+	Enabled     *bool                   `json:"enabled,omitempty"`
 	Sources     []RecommendExportSource `json:"sources"`
 }
 
@@ -420,6 +467,7 @@ func (s *AdminRecommendService) Export() (*RecommendExport, error) {
 			SiteURL:     src.SiteURL,
 			Description: src.Description,
 			HotRank:     src.HotRank,
+			Enabled:     boolPtr(src.Enabled),
 		})
 	}
 	out := &RecommendExport{Categories: make([]RecommendExportCategory, 0, len(cats))}
@@ -431,6 +479,7 @@ func (s *AdminRecommendService) Export() (*RecommendExport, error) {
 		out.Categories = append(out.Categories, RecommendExportCategory{
 			Name:        c.Name,
 			Description: c.Description,
+			Enabled:     boolPtr(c.Enabled),
 			Sources:     items,
 		})
 	}
@@ -457,10 +506,15 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 			return ErrCategoryDuplicate
 		}
 		names[name] = true
+		catEnabled := true
+		if c.Enabled != nil {
+			catEnabled = *c.Enabled
+		}
 		cat := model.RecommendCategory{
 			Name:        name,
 			Description: truncateRunes(c.Description, 500),
 			SortOrder:   (i + 1) * 10,
+			Enabled:     catEnabled,
 		}
 		prepared = append(prepared, cat)
 
@@ -480,6 +534,10 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 			if hotRank < 0 {
 				hotRank = 0
 			}
+			srcEnabled := true
+			if src.Enabled != nil {
+				srcEnabled = *src.Enabled
+			}
 			items = append(items, model.RecommendSource{
 				Title:       title,
 				FeedURL:     feedURL,
@@ -488,6 +546,7 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 				Category:    name,
 				HotRank:     hotRank,
 				SortOrder:   (j + 1) * 10,
+				Enabled:     srcEnabled,
 			})
 		}
 		preparedSources = append(preparedSources, items)
@@ -504,6 +563,13 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 			if err := tx.Create(&prepared[i]).Error; err != nil {
 				return err
 			}
+			// gorm 的 default:true 会把零值 false 写成 true，停用状态需要显式落库
+			if !prepared[i].Enabled {
+				if err := tx.Model(&model.RecommendCategory{}).Where("id = ?", prepared[i].ID).
+					Update("enabled", false).Error; err != nil {
+					return err
+				}
+			}
 			items := preparedSources[i]
 			for j := range items {
 				items[j].CategoryID = prepared[i].ID
@@ -511,6 +577,15 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 			if len(items) > 0 {
 				if err := tx.Create(&items).Error; err != nil {
 					return err
+				}
+				for j := range items {
+					if items[j].Enabled {
+						continue
+					}
+					if err := tx.Model(&model.RecommendSource{}).Where("id = ?", items[j].ID).
+						Update("enabled", false).Error; err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -521,6 +596,11 @@ func (s *AdminRecommendService) Import(actor AdminActor, data RecommendExport) e
 	}
 	WriteAdminLog(s.db, actor, LogSourceImport, "导入推荐数据，分类 "+strconv.Itoa(len(prepared))+" 个")
 	return nil
+}
+
+// boolPtr 导出时把 bool 转成指针，便于导入区分「未提供」和「显式 false」
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 // Reset 清空并恢复内置推荐数据

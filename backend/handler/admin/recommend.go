@@ -73,6 +73,23 @@ func (h *Handler) recommendDelete(c *gin.Context) {
 	service.OK(c, gin.H{"ok": true})
 }
 
+// POST /api/admin/recommend/status
+func (h *Handler) recommendStatus(c *gin.Context) {
+	var req statusRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	if req.ID <= 0 {
+		service.FailBadRequest(c, "参数错误")
+		return
+	}
+	if err := h.recommend.SetSourceEnabled(middleware.CurrentAdmin(c), req.ID, req.Enabled); err != nil {
+		handleError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"ok": true})
+}
+
 // POST /api/admin/recommend/reorder
 func (h *Handler) recommendReorder(c *gin.Context) {
 	var req reorderRequest

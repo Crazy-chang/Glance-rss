@@ -11,6 +11,7 @@ import {
   Select,
   Space,
   Table,
+  Tag,
   Typography,
   Upload,
   message,
@@ -44,7 +45,7 @@ export default function Sources() {
   const loadCategories = useCallback(async () => {
     try {
       const data = await api.categories();
-      setCategories(data);
+      setCategories(data.map((item) => ({ ...item, enabled: item.enabled !== false })));
       setCategoryId((current) => {
         if (current && data.some((item) => item.id === current)) {
           return current;
@@ -63,7 +64,7 @@ export default function Sources() {
     }
     setLoading(true);
     try {
-      setList(await api.sources(id));
+      setList((await api.sources(id)).map((item) => ({ ...item, enabled: item.enabled !== false })));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载推荐源失败');
     } finally {
@@ -144,6 +145,17 @@ export default function Sources() {
     }
   };
 
+  const toggleEnabled = async (item: Source) => {
+    const next = !item.enabled;
+    try {
+      await api.setSourceEnabled(item.id, next);
+      message.success(next ? '已启用' : '已停用');
+      loadSources(categoryId);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
   const handleExport = async () => {
     try {
       const data = await api.exportData();
@@ -217,8 +229,15 @@ export default function Sources() {
       render: (value: number) => (value > 0 ? value : '-'),
     },
     {
+      title: '状态',
+      dataIndex: 'enabled',
+      width: 90,
+      render: (enabled: boolean) =>
+        enabled ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>,
+    },
+    {
       title: '操作',
-      width: 250,
+      width: 260,
       render: (_, item, index) => (
         <Space size={4}>
           <Button
@@ -235,6 +254,9 @@ export default function Sources() {
             disabled={index === list.length - 1}
             onClick={() => move(index, 1)}
           />
+          <Button size="small" onClick={() => toggleEnabled(item)}>
+            {item.enabled ? '停用' : '启用'}
+          </Button>
           <Button size="small" onClick={() => openEdit(item)}>
             编辑
           </Button>
@@ -284,6 +306,9 @@ export default function Sources() {
               onChange={(value) => setCategoryId(value)}
             />
             <Typography.Text type="secondary">当前分类共 {list.length} 个推荐源</Typography.Text>
+            {categories.find((item) => item.id === categoryId)?.enabled === false && (
+              <Typography.Text type="warning">该分类已停用，其下全部推荐源不在发现页展示</Typography.Text>
+            )}
           </Space>
           <Table
             rowKey="id"
@@ -291,6 +316,7 @@ export default function Sources() {
             loading={loading}
             columns={columns}
             dataSource={list}
+            rowClassName={(item) => (item.enabled ? '' : 'row-disabled')}
             pagination={false}
           />
         </>

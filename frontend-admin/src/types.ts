@@ -5,6 +5,7 @@ export interface Category {
   description: string;
   sort_order: number;
   source_count: number;
+  enabled: boolean;
 }
 
 export interface Source {
@@ -17,6 +18,7 @@ export interface Source {
   description: string;
   hot_rank: number;
   sort_order: number;
+  enabled: boolean;
 }
 
 export interface ExportSource {
@@ -25,11 +27,13 @@ export interface ExportSource {
   site_url: string;
   description: string;
   hot_rank: number;
+  enabled?: boolean;
 }
 
 export interface ExportCategory {
   name: string;
   description: string;
+  enabled?: boolean;
   sources: ExportSource[];
 }
 

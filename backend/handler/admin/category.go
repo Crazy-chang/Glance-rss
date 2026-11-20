@@ -17,6 +17,12 @@ type reorderRequest struct {
 	IDs []int64 `json:"ids"`
 }
 
+// statusRequest 停用/启用请求体
+type statusRequest struct {
+	ID      int64 `json:"id"`
+	Enabled bool  `json:"enabled"`
+}
+
 // GET /api/admin/category/list
 func (h *Handler) categoryList(c *gin.Context) {
 	list, err := h.recommend.ListCategories()
@@ -69,6 +75,23 @@ func (h *Handler) categoryDelete(c *gin.Context) {
 		return
 	}
 	if err := h.recommend.DeleteCategory(middleware.CurrentAdmin(c), req.ID); err != nil {
+		handleError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"ok": true})
+}
+
+// POST /api/admin/category/status
+func (h *Handler) categoryStatus(c *gin.Context) {
+	var req statusRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	if req.ID <= 0 {
+		service.FailBadRequest(c, "参数错误")
+		return
+	}
+	if err := h.recommend.SetCategoryEnabled(middleware.CurrentAdmin(c), req.ID, req.Enabled); err != nil {
 		handleError(c, err)
 		return
 	}

@@ -50,10 +50,12 @@ const (
 	LogCategoryUpdate = "修改分类"
 	LogCategoryDelete = "删除分类"
 	LogCategorySort   = "分类排序"
+	LogCategoryStatus = "分类停用/启用"
 	LogSourceCreate   = "新增推荐源"
 	LogSourceUpdate   = "修改推荐源"
 	LogSourceDelete   = "删除推荐源"
 	LogSourceSort     = "推荐源排序"
+	LogSourceStatus   = "推荐源停用/启用"
 	LogSourceImport   = "导入推荐数据"
 	LogSystemReset    = "恢复初始设置"
 )

@@ -51,7 +51,8 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 		return nil, err
 	}
 	var all []model.RecommendSource
-	if err := d.db.Order("sort_order ASC, id ASC").Find(&all).Error; err != nil {
+	if err := d.db.Where("enabled = ?", true).
+		Order("sort_order ASC, id ASC").Find(&all).Error; err != nil {
 		return nil, err
 	}
 
@@ -77,12 +78,24 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 		Categories: []DiscoverCategory{},
 	}
 
+	// 停用的分类整体隐藏：分类本身及其下推荐源（含热门）都不展示
+	disabledCat := make(map[int64]bool, len(cats))
+	for _, c := range cats {
+		if !c.Enabled {
+			disabledCat[c.ID] = true
+		}
+	}
+
 	// 热门单独按 hot_rank 升序
 	var hot []model.RecommendSource
-	if err := d.db.Where("hot_rank > 0").Order("hot_rank ASC, id ASC").Find(&hot).Error; err != nil {
+	if err := d.db.Where("hot_rank > 0 AND enabled = ?", true).
+		Order("hot_rank ASC, id ASC").Find(&hot).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range hot {
+		if disabledCat[r.CategoryID] {
+			continue
+		}
 		result.Hot = append(result.Hot, toDTO(r))
 	}
 
@@ -90,6 +103,9 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 	catIndex := make(map[int64]int, len(cats))
 	orphanIndex := make(map[string]int, 2)
 	for _, c := range cats {
+		if !c.Enabled {
+			continue
+		}
 		catIndex[c.ID] = len(result.Categories)
 		result.Categories = append(result.Categories, DiscoverCategory{
 			Name:    c.Name,
@@ -99,6 +115,9 @@ func (d *DiscoverService) List(userID int64) (*DiscoverResult, error) {
 	for _, r := range all {
 		if idx, ok := catIndex[r.CategoryID]; ok {
 			result.Categories[idx].Sources = append(result.Categories[idx].Sources, toDTO(r))
+			continue
+		}
+		if disabledCat[r.CategoryID] {
 			continue
 		}
 		// 兜底：未关联分类的旧数据按分类名追加到末尾

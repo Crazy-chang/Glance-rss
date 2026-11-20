@@ -43,6 +43,7 @@ func (h *Handler) Register(g *gin.RouterGroup) {
 		authed.POST("/category/create", h.categoryCreate)
 		authed.POST("/category/update", h.categoryUpdate)
 		authed.POST("/category/delete", h.categoryDelete)
+		authed.POST("/category/status", h.categoryStatus)
 		authed.POST("/category/reorder", h.categoryReorder)
 
 		// 推荐源
@@ -50,6 +51,7 @@ func (h *Handler) Register(g *gin.RouterGroup) {
 		authed.POST("/recommend/create", h.recommendCreate)
 		authed.POST("/recommend/update", h.recommendUpdate)
 		authed.POST("/recommend/delete", h.recommendDelete)
+		authed.POST("/recommend/status", h.recommendStatus)
 		authed.POST("/recommend/reorder", h.recommendReorder)
 		authed.POST("/recommend/import", h.recommendImport)
 		authed.GET("/recommend/export", h.recommendExport)

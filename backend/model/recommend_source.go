@@ -14,6 +14,7 @@ type RecommendSource struct {
 	Description string    `gorm:"size:500" json:"description"`
 	HotRank     int       `gorm:"not null;default:0" json:"hot_rank"`         // >0 进入热门订阅，按升序排列
 	SortOrder   int       `gorm:"not null;default:0;index" json:"sort_order"` // 分类内排序，越小越靠前
+	Enabled     bool      `gorm:"not null;default:true" json:"enabled"`       // 停用后不在发现页展示
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

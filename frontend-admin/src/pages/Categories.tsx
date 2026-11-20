@@ -8,6 +8,7 @@ import {
   Popconfirm,
   Space,
   Table,
+  Tag,
   Typography,
   message,
 } from 'antd';
@@ -27,7 +28,9 @@ export default function Categories() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setList(await api.categories());
+      const data = await api.categories();
+      // 后端未升级时没有 enabled 字段，按默认启用处理
+      setList(data.map((item) => ({ ...item, enabled: item.enabled !== false })));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载失败');
     } finally {
@@ -94,11 +97,29 @@ export default function Categories() {
     }
   };
 
+  const toggleEnabled = async (item: Category) => {
+    const next = !item.enabled;
+    try {
+      await api.setCategoryEnabled(item.id, next);
+      message.success(next ? '已启用' : '已停用');
+      load();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
   const columns: ColumnsType<Category> = [
     { title: '排序', dataIndex: 'sort_order', width: 80 },
     { title: '分类名称', dataIndex: 'name', width: 160 },
     { title: '描述', dataIndex: 'description', ellipsis: true },
     { title: '推荐源数量', dataIndex: 'source_count', width: 110 },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      width: 90,
+      render: (enabled: boolean) =>
+        enabled ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>,
+    },
     {
       title: '操作',
       width: 260,
@@ -118,6 +139,9 @@ export default function Categories() {
             disabled={index === list.length - 1}
             onClick={() => move(index, 1)}
           />
+          <Button size="small" onClick={() => toggleEnabled(item)}>
+            {item.enabled ? '停用' : '启用'}
+          </Button>
           <Button size="small" onClick={() => openEdit(item)}>
             编辑
           </Button>
@@ -148,7 +172,7 @@ export default function Categories() {
       }
     >
       <Typography.Paragraph type="secondary">
-        分类顺序即发现页展示顺序；分类下仍有推荐源时不能删除分类。
+        分类和推荐源停用后不再出现在小程序发现页；停用分类时其下推荐源一并隐藏，已订阅用户不受影响。
       </Typography.Paragraph>
       <Table
         rowKey="id"
@@ -156,6 +180,7 @@ export default function Categories() {
         loading={loading}
         columns={columns}
         dataSource={list}
+        rowClassName={(item) => (item.enabled ? '' : 'row-disabled')}
         pagination={false}
       />
 
