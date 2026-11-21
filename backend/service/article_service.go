@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/net/html"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"glance-wx/backend/model"
 )
@@ -322,6 +323,71 @@ func (s *ArticleService) upsertState(userID, articleID int64, mut func(*model.Us
 		mut(&st)
 		return tx.Save(&st).Error
 	})
+}
+
+// UserProfile 小程序用户资料（当前用于下发功能开关）
+type UserProfile struct {
+	BatchReadEnabled bool `json:"batch_read_enabled"`
+	BatchReadLimit   int  `json:"batch_read_limit"`
+}
+
+// Profile 返回当前用户可下发的资料
+func (s *ArticleService) Profile(userID int64) (UserProfile, error) {
+	var u model.User
+	if err := s.db.First(&u, userID).Error; err != nil {
+		return UserProfile{}, err
+	}
+	cfg, err := model.EnsureAppConfig(s.db)
+	if err != nil {
+		return UserProfile{}, err
+	}
+	return UserProfile{
+		BatchReadEnabled: u.BatchReadEnabled,
+		BatchReadLimit:   cfg.BatchReadLimit,
+	}, nil
+}
+
+// BatchRead 把该用户最新的未读文章按全局配置批量标为已读，返回实际条数。
+// 全局配置为 0 时表示全部未读。
+func (s *ArticleService) BatchRead(userID int64) (int64, error) {
+	var u model.User
+	if err := s.db.First(&u, userID).Error; err != nil {
+		return 0, err
+	}
+	if !u.BatchReadEnabled {
+		return 0, ErrBatchReadOff
+	}
+	cfg, err := model.EnsureAppConfig(s.db)
+	if err != nil {
+		return 0, err
+	}
+	q := s.baseScopedQuery(userID).
+		Where("COALESCE(st.is_read, 0) = 0").
+		Order("a.published_at DESC, a.id DESC")
+	if cfg.BatchReadLimit > 0 {
+		q = q.Limit(cfg.BatchReadLimit)
+	}
+	var ids []int64
+	if err := q.Pluck("a.id", &ids).Error; err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	now := time.Now().UTC()
+	states := make([]model.UserArticleState, 0, len(ids))
+	for _, id := range ids {
+		states = append(states, model.UserArticleState{
+			UserID: userID, ArticleID: id, IsRead: true, ReadAt: &now,
+		})
+	}
+	if err := s.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "article_id"}},
+		DoUpdates: clause.Assignments(map[string]any{"is_read": true, "read_at": now, "updated_at": now}),
+	}).Create(&states).Error; err != nil {
+		return 0, err
+	}
+	return int64(len(ids)), nil
 }
 
 // buildListQuery 构造带归属/筛选/搜索条件的查询（不含 select/order/分页）

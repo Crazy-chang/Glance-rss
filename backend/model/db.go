@@ -45,7 +45,7 @@ func Open(dsn string) (*gorm.DB, error) {
 
 // AutoMigrate 自动建表
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&User{},
 		&Source{},
 		&Article{},
@@ -55,7 +55,12 @@ func AutoMigrate(db *gorm.DB) error {
 		&RecommendSource{},
 		&AdminUser{},
 		&AdminLog{},
-	)
+		&AppConfig{},
+	); err != nil {
+		return err
+	}
+	_, err := EnsureAppConfig(db)
+	return err
 }
 
 // BackfillFavoritedAt 为历史收藏补齐收藏时间（旧数据没有该字段，用 updated_at 近似）

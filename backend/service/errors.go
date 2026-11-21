@@ -11,6 +11,7 @@ var (
 	ErrFeedInvalid      = errors.New("RSS 地址无效或无法访问")
 	ErrSettingValue     = errors.New("设置项取值不合法")
 	ErrSourceTitleEmpty = errors.New("订阅源名称不能为空")
+	ErrBatchReadOff     = errors.New("一键阅读未开启")
 )
 
 // 后台管理错误
@@ -25,4 +26,6 @@ var (
 	ErrRecommendFeedURL   = errors.New("RSS 地址不合法")
 	ErrRecommendDuplicate = errors.New("该 RSS 地址已存在")
 	ErrImportInvalid      = errors.New("导入数据格式不正确")
+	ErrUserMissing        = errors.New("用户不存在")
+	ErrConfigValue        = errors.New("配置取值不合法")
 )

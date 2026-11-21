@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,12 +24,13 @@ type AdminUserSourceDTO struct {
 
 // AdminUserDTO 后台查看用户及其订阅源
 type AdminUserDTO struct {
-	ID          int64                `json:"id"`
-	OpenID      string               `json:"open_id"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
-	SourceCount int64                `json:"source_count"`
-	Sources     []AdminUserSourceDTO `json:"sources"`
+	ID               int64                `json:"id"`
+	OpenID           string               `json:"open_id"`
+	BatchReadEnabled bool                 `json:"batch_read_enabled"`
+	CreatedAt        time.Time            `json:"created_at"`
+	UpdatedAt        time.Time            `json:"updated_at"`
+	SourceCount      int64                `json:"source_count"`
+	Sources          []AdminUserSourceDTO `json:"sources"`
 }
 
 // AdminUserListResult 用户订阅分页结果
@@ -114,14 +117,36 @@ func ListAdminUsers(db *gorm.DB, page, size int, minSourceCount int64) (*AdminUs
 			list = []AdminUserSourceDTO{}
 		}
 		result.List = append(result.List, AdminUserDTO{
-			ID:          u.ID,
-			OpenID:      u.OpenID,
-			CreatedAt:   u.CreatedAt,
-			UpdatedAt:   u.UpdatedAt,
-			SourceCount: int64(len(list)),
-			Sources:     list,
+			ID:               u.ID,
+			OpenID:           u.OpenID,
+			BatchReadEnabled: u.BatchReadEnabled,
+			CreatedAt:        u.CreatedAt,
+			UpdatedAt:        u.UpdatedAt,
+			SourceCount:      int64(len(list)),
+			Sources:          list,
 		})
 	}
 
 	return result, nil
+}
+
+// SetUserBatchRead 开启/关闭指定用户的一键阅读功能
+func SetUserBatchRead(db *gorm.DB, actor AdminActor, id int64, enabled bool) error {
+	var user model.User
+	if err := db.First(&user, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserMissing
+		}
+		return err
+	}
+	if err := db.Model(&model.User{}).Where("id = ?", id).
+		Update("batch_read_enabled", enabled).Error; err != nil {
+		return err
+	}
+	verb := "关闭"
+	if enabled {
+		verb = "开启"
+	}
+	WriteAdminLog(db, actor, LogUserBatchRead, fmt.Sprintf("%s用户 #%d 的一键阅读", verb, id))
+	return nil
 }

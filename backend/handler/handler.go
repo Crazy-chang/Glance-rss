@@ -66,6 +66,10 @@ func (h *Handler) Register(api *gin.RouterGroup) {
 		authed.POST("/article/favorite/:id", h.articleFavorite)
 		authed.POST("/article/unfavorite/:id", h.articleUnfavorite)
 		authed.POST("/article/clear-read", h.articleClearRead)
+		authed.POST("/article/read-batch", h.articleReadBatch)
+
+		// 用户
+		authed.GET("/user/profile", h.userProfile)
 
 		// 订阅源
 		authed.GET("/source/list", h.sourceList)
@@ -126,6 +130,8 @@ func handleServiceError(c *gin.Context, err error) {
 		service.FailBadRequest(c, "设置项取值不合法")
 	case errors.Is(err, service.ErrInvalidCode):
 		service.FailBadRequest(c, "登录失败，请重试")
+	case errors.Is(err, service.ErrBatchReadOff):
+		service.FailBadRequest(c, "一键阅读未开启")
 	default:
 		slog.Error("接口内部错误", "path", c.FullPath(), "err", err)
 		service.FailServer(c)

@@ -73,10 +73,15 @@ export interface AdminUserSource {
 export interface AdminUser {
   id: number;
   open_id: string;
+  batch_read_enabled: boolean;
   created_at: string;
   updated_at: string;
   source_count: number;
   sources: AdminUserSource[];
+}
+
+export interface AppConfig {
+  batch_read_limit: number;
 }
 
 export interface UserListResult {

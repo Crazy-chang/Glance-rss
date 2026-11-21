@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -609,5 +610,26 @@ func (s *AdminRecommendService) Reset(actor AdminActor) error {
 		return err
 	}
 	WriteAdminLog(s.db, actor, LogSystemReset, "恢复内置推荐分类与推荐源")
+	return nil
+}
+
+// GetAppConfig 读取全局配置（不存在时创建默认配置）
+func (s *AdminRecommendService) GetAppConfig() (model.AppConfig, error) {
+	return model.EnsureAppConfig(s.db)
+}
+
+// UpdateBatchReadLimit 修改一键阅读条数（0 表示全部）
+func (s *AdminRecommendService) UpdateBatchReadLimit(actor AdminActor, limit int) error {
+	if limit < 0 {
+		return ErrConfigValue
+	}
+	if err := model.SetBatchReadLimit(s.db, limit); err != nil {
+		return err
+	}
+	detail := "一键阅读条数：全部"
+	if limit > 0 {
+		detail = fmt.Sprintf("一键阅读条数：%d", limit)
+	}
+	WriteAdminLog(s.db, actor, LogSystemConfig, detail)
 	return nil
 }

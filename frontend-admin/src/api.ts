@@ -1,4 +1,4 @@
-import type { AdminLog, Category, ExportData, Source, SourceInput, UserListResult } from './types';
+import type { AdminLog, AppConfig, Category, ExportData, Source, SourceInput, UserListResult } from './types';
 
 const TOKEN_KEY = 'glance_admin_token';
 
@@ -115,6 +115,15 @@ export const api = {
     const query = new URLSearchParams({ page: String(page), size: String(size) });
     if (minSources > 0) query.set('min_sources', String(minSources));
     return request<UserListResult>(`/user/list?${query.toString()}`);
+  },
+  setUserBatchRead(id: number, enabled: boolean) {
+    return request<{ ok: boolean }>('/user/batch-read', 'POST', { id, enabled });
+  },
+  getConfig() {
+    return request<AppConfig>('/system/config');
+  },
+  updateConfig(batchReadLimit: number) {
+    return request<{ ok: boolean }>('/system/config', 'POST', { batch_read_limit: batchReadLimit });
   },
   logs(limit = 100) {
     return request<AdminLog[]>(`/system/logs?limit=${limit}`);

@@ -4,6 +4,7 @@ import type { ArticleListItem as ArticleListItemType, FilterType } from '@/api/t
 import { useArticleList } from '@/hooks/useArticleList'
 import { setNavContext } from '@/utils/navContext'
 import ArticleListItem from '../ArticleListItem'
+import BatchReadFab from '../BatchReadFab'
 import EmptyState from '../EmptyState'
 import FilterBar from '../FilterBar'
 import LoadingMore from '../LoadingMore'
@@ -59,6 +60,7 @@ export default function ArticleListView({
     onSearchInput,
     onSearchConfirm,
     clearSearch,
+    reload,
     buildNavContext
   } = useArticleList({ sourceId, withSourceProbe })
 
@@ -133,6 +135,8 @@ export default function ArticleListView({
           <Spinner size={30} />
         </View>
       )}
+      {/* 一键阅读：仅首页（全部订阅）展示，显隐由组件内部按用户开关自行判断 */}
+      {!sourceId && <BatchReadFab onDone={reload} />}
     </View>
   )
 }

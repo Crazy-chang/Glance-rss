@@ -109,3 +109,23 @@ func (h *Handler) articleClearRead(c *gin.Context) {
 	}
 	service.OK(c, gin.H{"deleted": count})
 }
+
+// GET /api/user/profile 当前用户资料（含功能开关）
+func (h *Handler) userProfile(c *gin.Context) {
+	profile, err := h.article.Profile(uid(c))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	service.OK(c, profile)
+}
+
+// POST /api/article/read-batch 一键阅读：按全局配置批量标记已读
+func (h *Handler) articleReadBatch(c *gin.Context) {
+	count, err := h.article.BatchRead(uid(c))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"count": count})
+}

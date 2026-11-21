@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './components/AdminLayout';
 import Categories from './pages/Categories';
 import Login from './pages/Login';
+import MiniProgramSettings from './pages/MiniProgramSettings';
 import Sources from './pages/Sources';
 import System from './pages/System';
 import Users from './pages/Users';
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="sources" element={<Sources />} />
           </Route>
           <Route path="users" element={<Users />} />
+          <Route path="miniapp" element={<MiniProgramSettings />} />
           <Route path="system" element={<System />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

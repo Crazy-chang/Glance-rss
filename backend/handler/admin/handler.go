@@ -56,12 +56,15 @@ func (h *Handler) Register(g *gin.RouterGroup) {
 		authed.POST("/recommend/import", h.recommendImport)
 		authed.GET("/recommend/export", h.recommendExport)
 
-		// 用户订阅（只读）
+		// 用户订阅
 		authed.GET("/user/list", h.userList)
+		authed.POST("/user/batch-read", h.userBatchRead)
 
 		// 系统
 		authed.POST("/system/reset", h.systemReset)
 		authed.GET("/system/logs", h.systemLogs)
+		authed.GET("/system/config", h.systemConfig)
+		authed.POST("/system/config", h.systemConfigUpdate)
 	}
 }
 
@@ -102,6 +105,10 @@ func handleError(c *gin.Context, err error) {
 		service.FailBadRequest(c, "该 RSS 地址已存在")
 	case errors.Is(err, service.ErrImportInvalid):
 		service.FailBadRequest(c, "导入数据格式不正确，请检查分类名称与 RSS 地址")
+	case errors.Is(err, service.ErrUserMissing):
+		service.FailNotFound(c, "用户不存在")
+	case errors.Is(err, service.ErrConfigValue):
+		service.FailBadRequest(c, "配置取值不合法")
 	default:
 		slog.Error("后台接口内部错误", "path", c.FullPath(), "err", err)
 		service.FailServer(c)

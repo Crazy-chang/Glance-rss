@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"glance-wx/backend/middleware"
 	"glance-wx/backend/service"
 )
 
@@ -19,4 +20,21 @@ func (h *Handler) userList(c *gin.Context) {
 		return
 	}
 	service.OK(c, result)
+}
+
+// POST /api/admin/user/batch-read 开启/关闭用户的一键阅读
+func (h *Handler) userBatchRead(c *gin.Context) {
+	var req statusRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	if req.ID <= 0 {
+		service.FailBadRequest(c, "参数错误")
+		return
+	}
+	if err := service.SetUserBatchRead(h.db, middleware.CurrentAdmin(c), req.ID, req.Enabled); err != nil {
+		handleError(c, err)
+		return
+	}
+	service.OK(c, gin.H{"ok": true})
 }

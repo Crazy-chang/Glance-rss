@@ -16,6 +16,7 @@ export default function Users() {
   const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [onlyWithSources, setOnlyWithSources] = useState(true);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalUser, setModalUser] = useState<AdminUser | null>(null);
@@ -48,6 +49,21 @@ export default function Users() {
       message.success(`已复制 Feed：${source.title}`);
     } catch {
       message.error('复制失败，请手动选择复制');
+    }
+  };
+
+  const toggleBatchRead = async (record: AdminUser, enabled: boolean) => {
+    setTogglingId(record.id);
+    try {
+      await api.setUserBatchRead(record.id, enabled);
+      setList((prev) =>
+        prev.map((u) => (u.id === record.id ? { ...u, batch_read_enabled: enabled } : u)),
+      );
+      message.success(`${enabled ? '已开启' : '已关闭'}用户 #${record.id} 的一键阅读`);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -91,6 +107,18 @@ export default function Users() {
     { title: '用户 ID', dataIndex: 'id', width: 90 },
     { title: 'OpenID', dataIndex: 'open_id', width: 220 },
     { title: '订阅数', dataIndex: 'source_count', width: 90 },
+    {
+      title: '一键阅读',
+      dataIndex: 'batch_read_enabled',
+      width: 110,
+      render: (value: boolean, record) => (
+        <Switch
+          checked={value === true}
+          loading={togglingId === record.id}
+          onChange={(checked) => toggleBatchRead(record, checked)}
+        />
+      ),
+    },
     { title: '首次登录', dataIndex: 'created_at', width: 180, render: formatTime },
     { title: '最近更新', dataIndex: 'updated_at', width: 180, render: formatTime },
     {
@@ -138,7 +166,7 @@ export default function Users() {
         loading={loading}
         columns={columns}
         dataSource={list}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1100 }}
         pagination={{
           current: page,
           pageSize: size,

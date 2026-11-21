@@ -57,5 +57,7 @@ const (
 	LogSourceSort     = "推荐源排序"
 	LogSourceStatus   = "推荐源停用/启用"
 	LogSourceImport   = "导入推荐数据"
+	LogUserBatchRead  = "用户一键阅读开关"
+	LogSystemConfig   = "修改系统配置"
 	LogSystemReset    = "恢复初始设置"
 )

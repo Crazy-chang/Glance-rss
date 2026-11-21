@@ -1,4 +1,10 @@
-import { AppstoreOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  LogoutOutlined,
+  MobileOutlined,
+  SettingOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import { Button, Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api, clearToken } from '../api';
@@ -16,6 +22,7 @@ const menuItems = [
     ],
   },
   { key: 'users', icon: <TeamOutlined />, label: '用户订阅' },
+  { key: 'miniapp', icon: <MobileOutlined />, label: '小程序设置' },
   { key: 'system', icon: <SettingOutlined />, label: '系统管理' },
 ];
 

@@ -43,3 +43,15 @@ export function unfavorite(id: number) {
 export function clearReadArticles() {
   return request<{ deleted: number }>('/article/clear-read', { method: 'POST' })
 }
+
+// 当前用户资料（一键阅读开关与每次条数）
+export function getUserProfile() {
+  return request<{ batch_read_enabled: boolean; batch_read_limit: number }>('/user/profile', {
+    silent: true
+  })
+}
+
+// 一键阅读：按后台配置批量把未读标记为已读，返回实际条数
+export function readBatch() {
+  return request<{ count: number }>('/article/read-batch', { method: 'POST' })
+}

@@ -178,6 +178,9 @@ export function useArticleList(options: Options = {}) {
     applyKeyword('')
   }, [applyKeyword])
 
+  // 重新加载第一页（供一键阅读等外部动作在完成后刷新列表）
+  const reload = useCallback(() => replaceLoad(false), [replaceLoad])
+
   // 首屏加载 + 卸载清理
   useEffect(() => {
     replaceLoad(true)
@@ -296,6 +299,7 @@ export function useArticleList(options: Options = {}) {
     onSearchInput,
     onSearchConfirm,
     clearSearch,
+    reload,
     buildNavContext
   }
 }
